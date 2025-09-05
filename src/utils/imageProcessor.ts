@@ -31,6 +31,7 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
         filename: file.name,
         gender: options.gender,
         size: options.size,
+        mirror: options.mirror,
         timestamp: new Date().toISOString(),
       }),
     });
