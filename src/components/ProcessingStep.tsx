@@ -62,7 +62,7 @@ const ProcessingStep: React.FC<ProcessingStepProps> = ({ uploadedImage, fileName
                 <img 
                   src={uploadedImage} 
                   alt="Uploaded clothing"
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain bg-white/10"
                 />
               </div>
             )}
