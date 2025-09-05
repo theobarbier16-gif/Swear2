@@ -18,7 +18,7 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
     console.log('🎨 Type MIME:', file.type);
     console.log('👤 Genre:', options.gender);
     console.log('📐 Taille:', options.size.toUpperCase());
-    console.log('🪞 Vue:', options.mirror === 'mirror' ? 'Miroir' : 'Normale');
+    console.log('🪞 Vue:', options.mirror === 'mirror' ? 'photo dans le miroir' : 'vue normale');
     
     // Send to N8N webhook
     const response = await fetch('https://n8n-automatisation.fr/webhook-test/testvolt', {
@@ -31,7 +31,7 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
         filename: file.name,
         gender: options.gender,
         size: options.size,
-        mirror: options.mirror === 'mirror' ? 'photo dans le miroir' : 'vue normale',
+        mirror: options.mirror,
         timestamp: new Date().toISOString(),
       }),
     });
