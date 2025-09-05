@@ -12,6 +12,7 @@ export type ProcessingStep = 'upload' | 'processing' | 'results';
 export interface ClothingOptions {
   gender: 'homme' | 'femme' | 'enfant';
   size: 'xs' | 's' | 'm' | 'l' | 'xl';
+  mirror: 'normal' | 'mirror';
 }
 
 function App() {
@@ -23,7 +24,8 @@ function App() {
   const [processingError, setProcessingError] = useState<string | null>(null);
   const [clothingOptions, setClothingOptions] = useState<ClothingOptions>({
     gender: 'femme',
-    size: 'm'
+    size: 'm',
+    mirror: 'normal'
   });
 
   const handleImageUpload = async (imageUrl: string, name: string, file: File, options: ClothingOptions) => {
@@ -61,7 +63,7 @@ function App() {
     setFileName('');
     setProcessingError(null);
     setIsProcessing(false);
-    setClothingOptions({ gender: 'femme', size: 'm' });
+    setClothingOptions({ gender: 'femme', size: 'm', mirror: 'normal' });
   };
 
   const stepNumber = currentStep === 'upload' ? 1 : currentStep === 'processing' ? 2 : 3;

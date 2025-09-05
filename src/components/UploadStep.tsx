@@ -72,7 +72,7 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
             Options du Vêtement
           </h3>
           
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid md:grid-cols-3 gap-6">
             {/* Gender Selection */}
             <div>
               <label className="block text-sm font-medium text-white/80 mb-3">
@@ -140,6 +140,37 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
                     `}
                   >
                     {size.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            {/* Mirror Option */}
+            <div>
+              <label className="block text-sm font-medium text-white/80 mb-3">
+                Vue
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { value: 'normal', label: 'Normale' },
+                  { value: 'mirror', label: 'Miroir' }
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => setClothingOptions(prev => ({
+                      ...prev,
+                      mirror: option.value as ClothingOptions['mirror']
+                    }))}
+                    className={`
+                      px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 border-2
+                      ${clothingOptions.mirror === option.value
+                        ? 'bg-white text-vinted-600 border-white shadow-lg scale-105'
+                        : 'bg-white/10 text-white/80 border-white/20 hover:bg-white/20 hover:border-white/40'
+                      }
+                    `}
+                  >
+                    {option.label}
                   </button>
                 ))}
               </div>
