@@ -91,7 +91,7 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
                   <img 
                     src={uploadedImage} 
                     alt="Original"
-                    className="w-full h-[500px] object-cover"
+                    className="w-full h-[500px] object-contain"
                   />
                 )}
               </div>
@@ -107,7 +107,8 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
                   <img 
                     src={generatedImage} 
                     alt="Enhanced"
-                    className="w-full h-[500px] object-cover"
+                    className="w-full object-contain"
+                    style={{ width: '864px', height: '1184px' }}
                   />
                 )}
               </div>
@@ -120,7 +121,8 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
                 <img 
                   src={generatedImage} 
                   alt="Enhanced result"
-                  className="w-full h-[500px] object-cover"
+                  className="w-full object-contain"
+                  style={{ width: '864px', height: '1184px' }}
                 />
               )}
             </div>
