@@ -1,11 +1,13 @@
 // Utility for processing images with N8N webhook
+import { ClothingOptions } from '../App';
+
 export interface WebhookResponse {
   success: boolean;
   imageUrl?: string;
   error?: string;
 }
 
-export const processImageWithN8N = async (file: File): Promise<WebhookResponse> => {
+export const processImageWithN8N = async (file: File, options: ClothingOptions): Promise<WebhookResponse> => {
   try {
     // Convert file to base64
     const base64 = await fileToBase64(file);
@@ -14,6 +16,8 @@ export const processImageWithN8N = async (file: File): Promise<WebhookResponse> 
     console.log('📁 Nom du fichier:', file.name);
     console.log('📏 Taille du fichier:', file.size, 'bytes');
     console.log('🎨 Type MIME:', file.type);
+    console.log('👤 Genre:', options.gender);
+    console.log('📐 Taille:', options.size.toUpperCase());
     
     // Send to N8N webhook
     const response = await fetch('https://n8n-automatisation.fr/webhook-test/testvolt', {
@@ -24,6 +28,8 @@ export const processImageWithN8N = async (file: File): Promise<WebhookResponse> 
       body: JSON.stringify({
         image: base64,
         filename: file.name,
+        gender: options.gender,
+        size: options.size,
         timestamp: new Date().toISOString(),
       }),
     });

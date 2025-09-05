@@ -1,14 +1,19 @@
 import React, { useCallback, useState } from 'react';
-import { Upload, ImageIcon, Sparkles, AlertCircle } from 'lucide-react';
+import { Upload, ImageIcon, Sparkles, AlertCircle, User, Ruler } from 'lucide-react';
+import { ClothingOptions } from '../App';
 
 interface UploadStepProps {
-  onImageUpload: (imageUrl: string, fileName: string, file: File) => void;
+  onImageUpload: (imageUrl: string, fileName: string, file: File, options: ClothingOptions) => void;
   isProcessing?: boolean;
   processingError?: string | null;
 }
 
 const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, processingError }) => {
   const [isDragging, setIsDragging] = useState(false);
+  const [clothingOptions, setClothingOptions] = useState<ClothingOptions>({
+    gender: 'femme',
+    size: 'm'
+  });
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -19,15 +24,15 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
     
     if (imageFile) {
       const url = URL.createObjectURL(imageFile);
-      onImageUpload(url, imageFile.name, imageFile);
+      onImageUpload(url, imageFile.name, imageFile, clothingOptions);
     }
-  }, [onImageUpload]);
+  }, [onImageUpload, clothingOptions]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.type.startsWith('image/')) {
       const url = URL.createObjectURL(file);
-      onImageUpload(url, file.name, file);
+      onImageUpload(url, file.name, file, clothingOptions);
     }
   };
 
@@ -59,6 +64,69 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
       )}
 
       {/* Upload Area */}
+      {/* Clothing Options */}
+      <div className="max-w-2xl mx-auto mb-8">
+        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+          <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+            <User className="w-5 h-5 mr-2" />
+            Options du Vêtement
+          </h3>
+          
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Gender Selection */}
+            <div>
+              <label className="block text-sm font-medium text-white/80 mb-3">
+                Genre
+              </label>
+              <div className="space-y-2">
+                {[
+                  { value: 'femme', label: 'Femme' },
+                  { value: 'homme', label: 'Homme' },
+                  { value: 'enfant', label: 'Enfant' }
+                ].map((option) => (
+                  <label key={option.value} className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="gender"
+                      value={option.value}
+                      checked={clothingOptions.gender === option.value}
+                      onChange={(e) => setClothingOptions(prev => ({
+                        ...prev,
+                        gender: e.target.value as ClothingOptions['gender']
+                      }))}
+                      className="w-4 h-4 text-vinted-500 bg-white/20 border-white/30 focus:ring-vinted-500 focus:ring-2"
+                    />
+                    <span className="ml-2 text-white/90">{option.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            
+            {/* Size Selection */}
+            <div>
+              <label className="block text-sm font-medium text-white/80 mb-3 flex items-center">
+                <Ruler className="w-4 h-4 mr-1" />
+                Taille
+              </label>
+              <select
+                value={clothingOptions.size}
+                onChange={(e) => setClothingOptions(prev => ({
+                  ...prev,
+                  size: e.target.value as ClothingOptions['size']
+                }))}
+                className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded-lg text-white focus:ring-2 focus:ring-vinted-500 focus:border-transparent backdrop-blur-lg"
+              >
+                <option value="xs" className="bg-gray-800 text-white">XS</option>
+                <option value="s" className="bg-gray-800 text-white">S</option>
+                <option value="m" className="bg-gray-800 text-white">M</option>
+                <option value="l" className="bg-gray-800 text-white">L</option>
+                <option value="xl" className="bg-gray-800 text-white">XL</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="max-w-2xl mx-auto mb-12">
         <div
           className={`

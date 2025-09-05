@@ -9,6 +9,11 @@ import Footer from './components/Footer';
 
 export type ProcessingStep = 'upload' | 'processing' | 'results';
 
+export interface ClothingOptions {
+  gender: 'homme' | 'femme' | 'enfant';
+  size: 'xs' | 's' | 'm' | 'l' | 'xl';
+}
+
 function App() {
   const [currentStep, setCurrentStep] = useState<ProcessingStep>('upload');
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -16,17 +21,22 @@ function App() {
   const [fileName, setFileName] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingError, setProcessingError] = useState<string | null>(null);
+  const [clothingOptions, setClothingOptions] = useState<ClothingOptions>({
+    gender: 'femme',
+    size: 'm'
+  });
 
-  const handleImageUpload = async (imageUrl: string, name: string, file: File) => {
+  const handleImageUpload = async (imageUrl: string, name: string, file: File, options: ClothingOptions) => {
     setUploadedImage(imageUrl);
     setFileName(name);
+    setClothingOptions(options);
     setProcessingError(null);
     setCurrentStep('processing');
     setIsProcessing(true);
     
     try {
       // Process image with N8N webhook
-      const result = await processImageWithN8N(file);
+      const result = await processImageWithN8N(file, options);
       
       if (result.success && result.imageUrl) {
         setGeneratedImage(result.imageUrl);
@@ -51,6 +61,7 @@ function App() {
     setFileName('');
     setProcessingError(null);
     setIsProcessing(false);
+    setClothingOptions({ gender: 'femme', size: 'm' });
   };
 
   const stepNumber = currentStep === 'upload' ? 1 : currentStep === 'processing' ? 2 : 3;
