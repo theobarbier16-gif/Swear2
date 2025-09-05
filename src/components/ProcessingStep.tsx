@@ -55,21 +55,21 @@ const ProcessingStep: React.FC<ProcessingStepProps> = ({ uploadedImage, fileName
 
       {/* Preview of uploaded image */}
       <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl mb-8 border border-white/20">
-        <div className="flex flex-col md:flex-row items-center gap-8">
+        <div className="flex flex-col lg:flex-row items-center gap-8">
           <div className="flex-shrink-0">
             {uploadedImage && (
-              <div className="w-56 h-72 rounded-xl overflow-hidden shadow-2xl border border-white/20">
+              <div className="w-64 h-80 rounded-xl overflow-hidden shadow-2xl border border-white/20">
                 <img 
                   src={uploadedImage} 
                   alt="Uploaded clothing"
-                  className="w-full h-full object-contain bg-white/10"
+                  className="w-full h-full object-cover bg-white/10"
                 />
               </div>
             )}
           </div>
           
           <div className="flex-1 space-y-6">
-            <div className="text-center md:text-left">
+            <div className="text-center lg:text-left">
               <h3 className="text-xl font-semibold text-white mb-2">Traitement de Votre Image</h3>
               <p className="text-white/80">{currentTask}</p>
             </div>

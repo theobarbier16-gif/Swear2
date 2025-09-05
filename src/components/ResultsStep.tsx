@@ -81,17 +81,17 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
       {/* Image Display */}
       <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 shadow-2xl mb-8 border border-white/20">
         {showComparison ? (
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="flex flex-col lg:flex-row gap-8 items-start justify-center">
             <div className="text-center">
               <p className="text-sm font-medium text-white/80 mb-4 flex items-center justify-center">
                 ORIGINAL
               </p>
-              <div className="rounded-xl overflow-hidden shadow-2xl border border-white/20">
+              <div className="rounded-xl overflow-hidden shadow-2xl border border-white/20 mx-auto" style={{ maxWidth: '400px' }}>
                 {uploadedImage && (
                   <img 
                     src={uploadedImage} 
                     alt="Original"
-                    className="w-full h-[500px] object-contain"
+                    className="w-full h-auto object-contain bg-white/5"
                   />
                 )}
               </div>
@@ -102,27 +102,25 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
                 <Sparkles className="w-4 h-4 mr-2 text-white" />
                 AMÉLIORÉ
               </p>
-              <div className="rounded-xl overflow-hidden shadow-2xl border border-white/20">
+              <div className="rounded-xl overflow-hidden shadow-2xl border border-white/20 mx-auto" style={{ width: '300px', height: '411px' }}>
                 {generatedImage && (
                   <img 
                     src={generatedImage} 
                     alt="Enhanced"
-                    className="w-full object-contain"
-                    style={{ width: '864px', height: '1184px' }}
+                    className="w-full h-full object-cover"
                   />
                 )}
               </div>
             </div>
           </div>
         ) : (
-          <div className="max-w-lg mx-auto">
-            <div className="rounded-xl overflow-hidden shadow-2xl border border-white/20">
+          <div className="flex justify-center">
+            <div className="rounded-xl overflow-hidden shadow-2xl border border-white/20" style={{ width: '400px', height: '548px' }}>
               {generatedImage && (
                 <img 
                   src={generatedImage} 
                   alt="Enhanced result"
-                  className="w-full object-contain"
-                  style={{ width: '864px', height: '1184px' }}
+                  className="w-full h-full object-cover"
                 />
               )}
             </div>
