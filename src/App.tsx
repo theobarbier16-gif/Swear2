@@ -22,37 +22,81 @@ function App() {
   const [fileName, setFileName] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingError, setProcessingError] = useState<string | null>(null);
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+  const [showDebug, setShowDebug] = useState(false);
   const [clothingOptions, setClothingOptions] = useState<ClothingOptions>({
     gender: 'femme',
     size: 'm',
     mirror: 'normal'
   });
 
+  // Fonction pour ajouter des logs de debug
+  const addDebugLog = (message: string) => {
+    const timestamp = new Date().toLocaleTimeString();
+    const logMessage = `[${timestamp}] ${message}`;
+    setDebugLogs(prev => [...prev.slice(-50), logMessage]); // Garder seulement les 50 derniers logs
+    console.log(logMessage);
+  };
+
+  // Intercepter les logs console pour les afficher dans l'interface
+  React.useEffect(() => {
+    const originalLog = console.log;
+    const originalError = console.error;
+    
+    console.log = (...args) => {
+      const message = args.join(' ');
+      if (message.includes('[MOBILE DEBUG]')) {
+        addDebugLog(message);
+      }
+      originalLog.apply(console, args);
+    };
+    
+    console.error = (...args) => {
+      const message = args.join(' ');
+      if (message.includes('[MOBILE DEBUG]')) {
+        addDebugLog(`ERROR: ${message}`);
+      }
+      originalError.apply(console, args);
+    };
+    
+    return () => {
+      console.log = originalLog;
+      console.error = originalError;
+    };
+  }, []);
+
   const handleImageUpload = async (imageUrl: string, name: string, file: File, options: ClothingOptions) => {
+    addDebugLog('🚀 Début du processus d\'upload');
     setUploadedImage(imageUrl);
     setFileName(name);
     setClothingOptions(options);
     setProcessingError(null);
+    setDebugLogs([]); // Reset les logs pour un nouveau traitement
     setCurrentStep('processing');
     setIsProcessing(true);
     
     try {
       // Process image with N8N webhook
+      addDebugLog('📡 Appel du webhook N8N...');
       const result = await processImageWithN8N(file, options);
       
       if (result.success && result.imageUrl) {
+        addDebugLog('✅ Traitement réussi !');
         setGeneratedImage(result.imageUrl);
         setCurrentStep('results');
       } else {
+        addDebugLog(`❌ Échec du traitement: ${result.error}`);
         setProcessingError(result.error || 'Erreur lors du traitement de l\'image');
         setCurrentStep('upload');
       }
     } catch (error) {
+      addDebugLog(`💥 Erreur critique: ${error}`);
       console.error('Error processing image:', error);
       setProcessingError('Erreur de connexion au service de traitement');
       setCurrentStep('upload');
     } finally {
       setIsProcessing(false);
+      addDebugLog('🏁 Fin du processus');
     }
   };
 
@@ -63,6 +107,8 @@ function App() {
     setFileName('');
     setProcessingError(null);
     setIsProcessing(false);
+    setDebugLogs([]);
+    setShowDebug(false);
     setClothingOptions({ gender: 'femme', size: 'm', mirror: 'normal' });
   };
 
@@ -80,6 +126,42 @@ function App() {
       
       <Header />
       
+      {/* Debug Panel - Bouton flottant */}
+      <div className="fixed bottom-4 right-4 z-50">
+        <button
+          onClick={() => setShowDebug(!showDebug)}
+          className="bg-white/20 backdrop-blur-lg text-white p-3 rounded-full shadow-lg border border-white/30 hover:bg-white/30 transition-all duration-200"
+          title="Afficher les logs de debug"
+        >
+          🐛
+        </button>
+        
+        {showDebug && (
+          <div className="absolute bottom-16 right-0 w-80 max-h-96 bg-black/90 backdrop-blur-lg text-white text-xs rounded-lg shadow-2xl border border-white/20 overflow-hidden">
+            <div className="p-3 border-b border-white/20 flex justify-between items-center">
+              <span className="font-medium">Debug Logs</span>
+              <button
+                onClick={() => setDebugLogs([])}
+                className="text-white/60 hover:text-white text-xs"
+              >
+                Clear
+              </button>
+            </div>
+            <div className="p-3 max-h-80 overflow-y-auto">
+              {debugLogs.length === 0 ? (
+                <p className="text-white/60">Aucun log pour le moment...</p>
+              ) : (
+                debugLogs.map((log, index) => (
+                  <div key={index} className="mb-1 break-words">
+                    {log}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
       <main className="container mx-auto px-4 py-8 max-w-6xl relative z-10">
         {/* Progress Steps */}
         <div className="flex justify-center mb-12">
