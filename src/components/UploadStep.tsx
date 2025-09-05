@@ -66,25 +66,25 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
       {/* Upload Area */}
       {/* Clothing Options */}
       <div className="max-w-2xl mx-auto mb-8">
-        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20">
+        <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 shadow-xl">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
             <User className="w-5 h-5 mr-2" />
             Options du Vêtement
           </h3>
           
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-2 gap-8">
             {/* Gender Selection */}
             <div>
               <label className="block text-sm font-medium text-white/80 mb-3">
                 Genre
               </label>
-              <div className="space-y-2">
+              <div className="grid grid-cols-3 gap-2">
                 {[
                   { value: 'femme', label: 'Femme' },
                   { value: 'homme', label: 'Homme' },
                   { value: 'enfant', label: 'Enfant' }
                 ].map((option) => (
-                  <label key={option.value} className="flex items-center cursor-pointer">
+                  <label key={option.value} className="cursor-pointer">
                     <input
                       type="radio"
                       name="gender"
@@ -94,9 +94,17 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
                         ...prev,
                         gender: e.target.value as ClothingOptions['gender']
                       }))}
-                      className="w-4 h-4 text-vinted-500 bg-white/20 border-white/30 focus:ring-vinted-500 focus:ring-2"
+                      className="sr-only"
                     />
-                    <span className="ml-2 text-white/90">{option.label}</span>
+                    <div className={`
+                      px-4 py-3 rounded-xl text-center text-sm font-medium transition-all duration-200 border-2
+                      ${clothingOptions.gender === option.value
+                        ? 'bg-white text-vinted-600 border-white shadow-lg scale-105'
+                        : 'bg-white/10 text-white/80 border-white/20 hover:bg-white/20 hover:border-white/40'
+                      }
+                    `}>
+                      {option.label}
+                    </div>
                   </label>
                 ))}
               </div>
@@ -108,20 +116,33 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
                 <Ruler className="w-4 h-4 mr-1" />
                 Taille
               </label>
-              <select
-                value={clothingOptions.size}
-                onChange={(e) => setClothingOptions(prev => ({
-                  ...prev,
-                  size: e.target.value as ClothingOptions['size']
-                }))}
-                className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded-lg text-white focus:ring-2 focus:ring-vinted-500 focus:border-transparent backdrop-blur-lg"
-              >
-                <option value="xs" className="bg-gray-800 text-white">XS</option>
-                <option value="s" className="bg-gray-800 text-white">S</option>
-                <option value="m" className="bg-gray-800 text-white">M</option>
-                <option value="l" className="bg-gray-800 text-white">L</option>
-                <option value="xl" className="bg-gray-800 text-white">XL</option>
-              </select>
+              <div className="grid grid-cols-5 gap-2">
+                {[
+                  { value: 'xs', label: 'XS' },
+                  { value: 's', label: 'S' },
+                  { value: 'm', label: 'M' },
+                  { value: 'l', label: 'L' },
+                  { value: 'xl', label: 'XL' }
+                ].map((size) => (
+                  <button
+                    key={size.value}
+                    type="button"
+                    onClick={() => setClothingOptions(prev => ({
+                      ...prev,
+                      size: size.value as ClothingOptions['size']
+                    }))}
+                    className={`
+                      px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 border-2
+                      ${clothingOptions.size === size.value
+                        ? 'bg-white text-vinted-600 border-white shadow-lg scale-105'
+                        : 'bg-white/10 text-white/80 border-white/20 hover:bg-white/20 hover:border-white/40'
+                      }
+                    `}
+                  >
+                    {size.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
