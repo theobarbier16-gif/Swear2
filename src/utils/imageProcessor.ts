@@ -28,9 +28,9 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
   
   try {
     // Validation du fichier
-    console.log('🔍 [MOBILE DEBUG] Validation du fichier...');
+    debugLog('🔍 Validation du fichier...');
     if (!file || file.size === 0) {
-      console.error('❌ [MOBILE DEBUG] Fichier invalide ou vide');
+      debugLog('❌ Fichier invalide ou vide');
       throw new Error('Fichier invalide ou vide');
     }
     
@@ -79,7 +79,9 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
       mirror: options.mirror === 'mirror' ? 'photo dans le miroir' : 'normale',
       timestamp: new Date().toISOString(),
       userAgent: navigator.userAgent,
-      isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
+      origin: window.location.origin,
+      referrer: document.referrer || window.location.href
     };
     
     const payloadSize = JSON.stringify(payload).length;
@@ -95,112 +97,143 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
     // Test de connectivité avant l'envoi principal
     debugLog('🔍 Test de connectivité vers le serveur...');
     try {
+      // Test avec une requête OPTIONS pour vérifier CORS
       const testResponse = await fetch('https://n8n-automatisation.fr/webhook-test/testvolt', {
-        method: 'HEAD',
+        method: 'OPTIONS',
         headers: {
           'Accept': '*/*',
+          'Access-Control-Request-Method': 'POST',
+          'Access-Control-Request-Headers': 'Content-Type',
+          'Origin': window.location.origin,
         },
       });
-      debugLog(`✅ Test connectivité: ${testResponse.status} ${testResponse.statusText}`);
+      debugLog(`✅ Test CORS: ${testResponse.status} ${testResponse.statusText}`);
+      
+      // Vérifier les headers CORS
+      const corsHeaders = {
+        'Access-Control-Allow-Origin': testResponse.headers.get('Access-Control-Allow-Origin'),
+        'Access-Control-Allow-Methods': testResponse.headers.get('Access-Control-Allow-Methods'),
+        'Access-Control-Allow-Headers': testResponse.headers.get('Access-Control-Allow-Headers'),
+      };
+      debugLog(`🔍 Headers CORS: ${JSON.stringify(corsHeaders)}`);
+      
     } catch (testError) {
-      debugLog(`⚠️ Test connectivité échoué: ${testError}`);
+      debugLog(`⚠️ Test CORS échoué: ${testError}`);
+      // Continuer quand même, parfois OPTIONS n'est pas supporté
     }
     
-    // Send to N8N webhook avec timeout et retry
+    // Essayer plusieurs URLs de fallback
+    const webhookUrls = [
+      'https://n8n-automatisation.fr/webhook-test/testvolt',
+      'https://n8n-automatisation.fr/webhook/testvolt', // URL alternative
+      'http://n8n-automatisation.fr/webhook-test/testvolt', // HTTP fallback
+    ];
+    
     let response;
     const maxRetries = 3; // Plus de tentatives pour mobile
     let lastError;
+    let successUrl = null;
     
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        debugLog(`🔄 Tentative ${attempt + 1}/${maxRetries + 1}`);
-        debugLog(`📡 URL: https://n8n-automatisation.fr/webhook-test/testvolt`);
-        debugLog(`📦 Méthode: POST`);
-        debugLog(`📋 Headers: Content-Type: application/json`);
-        
-        const controller = new AbortController();
-        const timeoutDuration = 30000; // 30s timeout
-        const timeoutId = setTimeout(() => {
-          debugLog('⏰ Timeout - annulation de la requête');
-          controller.abort();
-        }, timeoutDuration);
-        
-        debugLog(`📡 Envoi de la requête... (${payloadSizeMB} MB)`);
-        
-        // Log du début de l'envoi
-        const startTime = Date.now();
-        
-        response = await fetch('https://n8n-automatisation.fr/webhook-test/testvolt', {
-          method: 'POST',
-          headers: {
+    // Essayer chaque URL
+    for (const webhookUrl of webhookUrls) {
+      debugLog(`🌐 Test de l'URL: ${webhookUrl}`);
+      
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          debugLog(`🔄 Tentative ${attempt + 1}/${maxRetries + 1} pour ${webhookUrl}`);
+          
+          const controller = new AbortController();
+          const timeoutDuration = 45000; // 45s timeout pour mobile
+          const timeoutId = setTimeout(() => {
+            debugLog('⏰ Timeout - annulation de la requête');
+            controller.abort();
+          }, timeoutDuration);
+          
+          debugLog(`📡 Envoi de la requête... (${payloadSizeMB} MB)`);
+          
+          // Log du début de l'envoi
+          const startTime = Date.now();
+          
+          // Headers optimisés pour mobile et CORS
+          const headers = {
             'Content-Type': 'application/json',
-            'Accept': '*/*',
-            'User-Agent': navigator.userAgent,
-            'Origin': window.location.origin,
-          },
-          body: JSON.stringify(payload),
-          signal: controller.signal,
-        });
-        
-        clearTimeout(timeoutId);
-        const endTime = Date.now();
-        const duration = endTime - startTime;
-        debugLog(`✅ Requête envoyée en ${duration}ms`);
-        debugLog(`📡 Statut reçu: ${response.status} ${response.statusText}`);
-        
-        // Log des headers de réponse
-        const responseHeaders = {};
-        response.headers.forEach((value, key) => {
-          responseHeaders[key] = value;
-        });
-        debugLog(`📋 Headers réponse: ${JSON.stringify(responseHeaders)}`);
-        
-        break; // Succès, sortir de la boucle
-        
-      } catch (error) {
-        lastError = error;
-        debugLog(`❌ Tentative ${attempt + 1} échouée: ${error instanceof Error ? error.message : String(error)}`);
-        
-        // Log détaillé de l'erreur
-        if (error instanceof Error) {
-          debugLog(`🔍 Type d'erreur: ${error.name}`);
-          debugLog(`🔍 Message: ${error.message}`);
-          if (error.stack) {
-            debugLog(`🔍 Stack: ${error.stack.split('\n')[0]}`);
+            'Accept': 'application/json, */*',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+          };
+          
+          // Ajouter Origin seulement si HTTPS
+          if (webhookUrl.startsWith('https://')) {
+            headers['Origin'] = window.location.origin;
+          }
+          
+          debugLog(`📋 Headers envoyés: ${JSON.stringify(headers)}`);
+          
+          response = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(payload),
+            signal: controller.signal,
+            mode: 'cors', // Explicitement demander CORS
+            credentials: 'omit', // Pas de cookies
+          });
+          
+          clearTimeout(timeoutId);
+          const endTime = Date.now();
+          const duration = endTime - startTime;
+          debugLog(`✅ Requête envoyée en ${duration}ms`);
+          debugLog(`📡 Statut reçu: ${response.status} ${response.statusText}`);
+          
+          // Log des headers de réponse
+          const responseHeaders = {};
+          response.headers.forEach((value, key) => {
+            responseHeaders[key] = value;
+          });
+          debugLog(`📋 Headers réponse: ${JSON.stringify(responseHeaders)}`);
+          
+          successUrl = webhookUrl;
+          break; // Succès, sortir de la boucle
+          
+        } catch (error) {
+          lastError = error;
+          debugLog(`❌ Tentative ${attempt + 1} échouée pour ${webhookUrl}: ${error instanceof Error ? error.message : String(error)}`);
+          
+          // Log détaillé de l'erreur
+          if (error instanceof Error) {
+            debugLog(`🔍 Type d'erreur: ${error.name}`);
+            debugLog(`🔍 Message: ${error.message}`);
+            
+            // Diagnostics spécifiques
+            if (error.message.includes('Load failed')) {
+              debugLog('🌐 Erreur "Load failed" - Problème réseau ou CORS');
+            } else if (error.message.includes('NetworkError')) {
+              debugLog('📡 Erreur réseau - Vérifiez votre connexion');
+            } else if (error.message.includes('CORS')) {
+              debugLog('🚫 Erreur CORS - Problème de politique de sécurité');
+            }
+          }
+          
+          if (attempt === maxRetries) {
+            debugLog(`❌ Toutes les tentatives ont échoué pour ${webhookUrl}`);
+          } else {
+            // Attendre avant de réessayer
+            const waitTime = 1000 * (attempt + 1);
+            debugLog(`⏳ Attente de ${waitTime}ms avant retry...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
           }
         }
-        
-        // Messages d'erreur plus spécifiques
-        if (error instanceof Error) {
-          if (error.message.includes('Load failed') || error.message.includes('NetworkError')) {
-            debugLog('🌐 Problème de réseau détecté');
-          } else if (error.message.includes('413') || error.message.includes('Request Entity Too Large')) {
-            debugLog('📏 Requête trop volumineuse pour le serveur');
-            throw new Error('Image trop lourde pour le serveur. Essayez avec une image plus petite.');
-          } else if (error.message.includes('timeout') || error.name === 'AbortError') {
-            debugLog('⏰ Timeout de connexion');
-          } else if (error.message.includes('CORS') || error.message.includes('Cross-Origin')) {
-            debugLog('🚫 Problème CORS détecté');
-          } else if (error.message.includes('Failed to fetch')) {
-            debugLog('🌐 Échec de connexion réseau');
-          }
-        }
-        
-        if (attempt === maxRetries) {
-          debugLog('❌ Toutes les tentatives ont échoué');
-          throw error; // Dernière tentative échouée
-        }
-        
-        // Attendre avant de réessayer
-        const waitTime = 1000 * (attempt + 1);
-        debugLog(`⏳ Attente de ${waitTime}ms avant retry...`);
-        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+      
+      // Si on a une réponse, sortir de la boucle des URLs
+      if (response) {
+        debugLog(`✅ Succès avec l'URL: ${successUrl}`);
+        break;
       }
     }
     
     if (!response) {
-      debugLog('❌ Aucune réponse reçue');
-      throw new Error('Impossible de contacter le serveur');
+      debugLog('❌ Aucune réponse reçue de toutes les URLs');
+      throw new Error('Impossible de contacter le serveur N8N. Vérifiez votre connexion internet.');
     }
 
     debugLog(`📡 Analyse de la réponse: ${response.status} ${response.statusText}`);
