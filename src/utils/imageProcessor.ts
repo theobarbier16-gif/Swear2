@@ -34,9 +34,9 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
       throw new Error('Fichier invalide ou vide');
     }
     
-    if (file.size > 10 * 1024 * 1024) { // 10MB max
+    if (file.size > 25 * 1024 * 1024) { // 25MB max pour mobile
       debugLog(`❌ Fichier trop volumineux: ${file.size} bytes`);
-      throw new Error('Fichier trop volumineux (max 10MB)');
+      throw new Error('Fichier trop volumineux (max 25MB)');
     }
     
     // Log détaillé de la taille
@@ -87,7 +87,7 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
     debugLog(`📦 Payload: ${payloadSize} caractères (${payloadSizeMB} MB)`);
     
     // Vérifier si le payload n'est pas trop gros
-    if (payloadSize > 50 * 1024 * 1024) { // 50MB limit pour le payload JSON
+    if (payloadSize > 100 * 1024 * 1024) { // 100MB limit pour le payload JSON
       debugLog('❌ Payload trop volumineux pour l\'envoi');
       throw new Error('Image trop complexe à traiter. Essayez avec une image plus simple.');
     }

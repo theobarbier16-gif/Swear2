@@ -246,7 +246,7 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
             </button>
             
             <p className="text-xs text-white/60 mt-4">
-              Supporte JPG, PNG, WebP • Max 10Mo
+              Supporte JPG, PNG, WebP • Max 25Mo
             </p>
           </div>
         </div>
