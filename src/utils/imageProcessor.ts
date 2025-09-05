@@ -39,6 +39,10 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
       throw new Error('Fichier trop volumineux (max 10MB)');
     }
     
+    // Log détaillé de la taille
+    const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+    debugLog(`📏 Taille du fichier: ${file.size} bytes (${sizeInMB} MB)`);
+    
     if (!file.type.startsWith('image/')) {
       debugLog(`❌ Type de fichier invalide: ${file.type}`);
       throw new Error('Le fichier doit être une image');
@@ -47,11 +51,12 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
     debugLog(`✅ Fichier validé: ${file.name} (${file.size} bytes, ${file.type})`);
     
     // Convert file to base64
+    debugLog('🔄 Début conversion base64...');
     let base64;
     try {
-      debugLog('🔄 Conversion en base64...');
       base64 = await fileToBase64(file);
-      debugLog(`✅ Conversion réussie (${base64.length} caractères)`);
+      const base64SizeKB = (base64.length * 0.75 / 1024).toFixed(2); // Approximation taille base64
+      debugLog(`✅ Conversion réussie: ${base64.length} caractères (~${base64SizeKB} KB)`);
     } catch (error) {
       debugLog(`❌ Erreur conversion: ${error}`);
       throw new Error('Impossible de traiter l\'image');
@@ -65,6 +70,7 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
     debugLog(`🚀 Envoi vers webhook: ${options.gender} ${options.size.toUpperCase()}`);
     
     // Préparer le payload
+    debugLog('📦 Préparation du payload...');
     const payload = {
       image: base64,
       filename: file.name,
@@ -76,7 +82,15 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
       isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
     };
     
-    debugLog(`📦 Payload préparé (${JSON.stringify(payload).length} caractères)`);
+    const payloadSize = JSON.stringify(payload).length;
+    const payloadSizeMB = (payloadSize / (1024 * 1024)).toFixed(2);
+    debugLog(`📦 Payload: ${payloadSize} caractères (${payloadSizeMB} MB)`);
+    
+    // Vérifier si le payload n'est pas trop gros
+    if (payloadSize > 50 * 1024 * 1024) { // 50MB limit pour le payload JSON
+      debugLog('❌ Payload trop volumineux pour l\'envoi');
+      throw new Error('Image trop complexe à traiter. Essayez avec une image plus simple.');
+    }
     
     // Send to N8N webhook avec timeout et retry
     let response;
@@ -102,6 +116,7 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
             'Content-Type': 'application/json',
             'Accept': '*/*',
             'User-Agent': navigator.userAgent,
+            'Content-Length': payloadSize.toString(),
           },
           body: JSON.stringify(payload),
           signal: controller.signal,
@@ -114,6 +129,18 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
       } catch (error) {
         lastError = error;
         debugLog(`⚠️ Tentative ${attempt + 1} échouée: ${error instanceof Error ? error.message : error}`);
+        
+        // Messages d'erreur plus spécifiques
+        if (error instanceof Error) {
+          if (error.message.includes('Load failed') || error.message.includes('NetworkError')) {
+            debugLog('🌐 Problème de réseau détecté');
+          } else if (error.message.includes('413') || error.message.includes('Request Entity Too Large')) {
+            debugLog('📏 Requête trop volumineuse pour le serveur');
+            throw new Error('Image trop lourde pour le serveur. Essayez avec une image plus petite.');
+          } else if (error.message.includes('timeout') || error.name === 'AbortError') {
+            debugLog('⏰ Timeout de connexion');
+          }
+        }
         
         if (attempt === maxRetries) {
           debugLog('❌ Toutes les tentatives ont échoué');
@@ -245,7 +272,9 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
       } else if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
         errorMessage = 'Problème de connexion. Vérifiez votre réseau.';
       } else if (error.message.includes('Load failed')) {
-        errorMessage = 'Échec du chargement. Réessayez avec une image plus petite.';
+        errorMessage = 'Problème de connexion réseau. Vérifiez votre connexion internet.';
+      } else if (error.message.includes('413') || error.message.includes('Request Entity Too Large')) {
+        errorMessage = 'Image trop volumineuse pour le serveur. Réduisez la taille de votre image.';
       } else {
         errorMessage = error.message;
       }
@@ -262,7 +291,7 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
 
 const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
-    debugLog('🔄 Début conversion fileToBase64');
+    debugLog(`🔄 Conversion ${file.name}: ${file.size} bytes`);
     
     if (!file) {
       debugLog('❌ Aucun fichier fourni');
@@ -270,7 +299,7 @@ const fileToBase64 = (file: File): Promise<string> => {
       return;
     }
     
-    debugLog(`📁 Conversion: ${file.name} (${file.size} bytes)`);
+    debugLog(`📁 Type: ${file.type}, Taille: ${(file.size/1024).toFixed(1)} KB`);
     
     const reader = new FileReader();
     
@@ -285,7 +314,7 @@ const fileToBase64 = (file: File): Promise<string> => {
             reject(new Error('Conversion base64 échouée'));
             return;
           }
-          debugLog(`✅ Conversion réussie: ${base64.length} caractères`);
+          debugLog(`✅ Base64: ${base64.length} chars`);
           resolve(base64);
         } else {
           debugLog('❌ Résultat FileReader invalide');
@@ -309,7 +338,7 @@ const fileToBase64 = (file: File): Promise<string> => {
     
     // Utiliser readAsDataURL avec gestion d'erreur
     try {
-      debugLog('🚀 Démarrage readAsDataURL...');
+      debugLog('🚀 Lecture fichier...');
       reader.readAsDataURL(file);
     } catch (error) {
       debugLog(`❌ Erreur démarrage readAsDataURL: ${error}`);
