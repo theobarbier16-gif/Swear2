@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Upload, Sparkles, Download, ArrowLeft, Check } from 'lucide-react';
-import { processImageWithN8N } from './utils/imageProcessor';
+import { processImageWithN8N, setDebugLogger } from './utils/imageProcessor';
 import Header from './components/Header';
 import UploadStep from './components/UploadStep';
 import ProcessingStep from './components/ProcessingStep';
@@ -30,6 +30,13 @@ function App() {
     mirror: 'normal'
   });
 
+  // Configurer le logger pour imageProcessor
+  React.useEffect(() => {
+    setDebugLogger((message: string) => {
+      setDebugLogs(prev => [...prev.slice(-50), message]);
+    });
+  }, []);
+
   // Fonction pour ajouter des logs de debug
   const addDebugLog = (message: string) => {
     const timestamp = new Date().toLocaleTimeString();
@@ -37,33 +44,6 @@ function App() {
     setDebugLogs(prev => [...prev.slice(-50), logMessage]); // Garder seulement les 50 derniers logs
     console.log(logMessage);
   };
-
-  // Intercepter les logs console pour les afficher dans l'interface
-  React.useEffect(() => {
-    const originalLog = console.log;
-    const originalError = console.error;
-    
-    console.log = (...args) => {
-      const message = args.join(' ');
-      if (message.includes('[MOBILE DEBUG]')) {
-        addDebugLog(message);
-      }
-      originalLog.apply(console, args);
-    };
-    
-    console.error = (...args) => {
-      const message = args.join(' ');
-      if (message.includes('[MOBILE DEBUG]')) {
-        addDebugLog(`ERROR: ${message}`);
-      }
-      originalError.apply(console, args);
-    };
-    
-    return () => {
-      console.log = originalLog;
-      console.error = originalError;
-    };
-  }, []);
 
   const handleImageUpload = async (imageUrl: string, name: string, file: File, options: ClothingOptions) => {
     addDebugLog('🚀 Début du processus d\'upload');
