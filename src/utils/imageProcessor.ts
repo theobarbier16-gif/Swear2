@@ -92,6 +92,20 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
       throw new Error('Image trop complexe à traiter. Essayez avec une image plus simple.');
     }
     
+    // Test de connectivité avant l'envoi principal
+    debugLog('🔍 Test de connectivité vers le serveur...');
+    try {
+      const testResponse = await fetch('https://n8n-automatisation.fr/webhook-test/testvolt', {
+        method: 'HEAD',
+        headers: {
+          'Accept': '*/*',
+        },
+      });
+      debugLog(`✅ Test connectivité: ${testResponse.status} ${testResponse.statusText}`);
+    } catch (testError) {
+      debugLog(`⚠️ Test connectivité échoué: ${testError}`);
+    }
+    
     // Send to N8N webhook avec timeout et retry
     let response;
     const maxRetries = 3; // Plus de tentatives pour mobile
@@ -100,6 +114,9 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         debugLog(`🔄 Tentative ${attempt + 1}/${maxRetries + 1}`);
+        debugLog(`📡 URL: https://n8n-automatisation.fr/webhook-test/testvolt`);
+        debugLog(`📦 Méthode: POST`);
+        debugLog(`📋 Headers: Content-Type: application/json`);
         
         const controller = new AbortController();
         const timeoutDuration = 30000; // 30s timeout
@@ -108,7 +125,10 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
           controller.abort();
         }, timeoutDuration);
         
-        debugLog('📡 Envoi de la requête...');
+        debugLog(`📡 Envoi de la requête... (${payloadSizeMB} MB)`);
+        
+        // Log du début de l'envoi
+        const startTime = Date.now();
         
         response = await fetch('https://n8n-automatisation.fr/webhook-test/testvolt', {
           method: 'POST',
@@ -116,19 +136,39 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
             'Content-Type': 'application/json',
             'Accept': '*/*',
             'User-Agent': navigator.userAgent,
-            'Content-Length': payloadSize.toString(),
+            'Origin': window.location.origin,
           },
           body: JSON.stringify(payload),
           signal: controller.signal,
         });
         
         clearTimeout(timeoutId);
-        debugLog('✅ Requête envoyée avec succès');
+        const endTime = Date.now();
+        const duration = endTime - startTime;
+        debugLog(`✅ Requête envoyée en ${duration}ms`);
+        debugLog(`📡 Statut reçu: ${response.status} ${response.statusText}`);
+        
+        // Log des headers de réponse
+        const responseHeaders = {};
+        response.headers.forEach((value, key) => {
+          responseHeaders[key] = value;
+        });
+        debugLog(`📋 Headers réponse: ${JSON.stringify(responseHeaders)}`);
+        
         break; // Succès, sortir de la boucle
         
       } catch (error) {
         lastError = error;
-        debugLog(`⚠️ Tentative ${attempt + 1} échouée: ${error instanceof Error ? error.message : error}`);
+        debugLog(`❌ Tentative ${attempt + 1} échouée: ${error instanceof Error ? error.message : String(error)}`);
+        
+        // Log détaillé de l'erreur
+        if (error instanceof Error) {
+          debugLog(`🔍 Type d'erreur: ${error.name}`);
+          debugLog(`🔍 Message: ${error.message}`);
+          if (error.stack) {
+            debugLog(`🔍 Stack: ${error.stack.split('\n')[0]}`);
+          }
+        }
         
         // Messages d'erreur plus spécifiques
         if (error instanceof Error) {
@@ -139,6 +179,10 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
             throw new Error('Image trop lourde pour le serveur. Essayez avec une image plus petite.');
           } else if (error.message.includes('timeout') || error.name === 'AbortError') {
             debugLog('⏰ Timeout de connexion');
+          } else if (error.message.includes('CORS') || error.message.includes('Cross-Origin')) {
+            debugLog('🚫 Problème CORS détecté');
+          } else if (error.message.includes('Failed to fetch')) {
+            debugLog('🌐 Échec de connexion réseau');
           }
         }
         
@@ -159,7 +203,7 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
       throw new Error('Impossible de contacter le serveur');
     }
 
-    debugLog(`📡 Statut de la réponse: ${response.status}`);
+    debugLog(`📡 Analyse de la réponse: ${response.status} ${response.statusText}`);
     
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Erreur inconnue');
