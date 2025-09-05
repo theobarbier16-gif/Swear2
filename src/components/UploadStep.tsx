@@ -72,13 +72,13 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
             Options du Vêtement
           </h3>
           
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Gender Selection */}
             <div>
               <label className="block text-sm font-medium text-white/80 mb-3">
                 Genre
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-1 sm:gap-2">
                 {[
                   { value: 'femme', label: 'Femme' },
                   { value: 'homme', label: 'Homme' },
@@ -97,7 +97,7 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
                       className="sr-only"
                     />
                     <div className={`
-                      px-4 py-3 rounded-xl text-center text-sm font-medium transition-all duration-200 border-2
+                      px-2 sm:px-4 py-3 rounded-xl text-center text-xs sm:text-sm font-medium transition-all duration-200 border-2
                       ${clothingOptions.gender === option.value
                         ? 'bg-white text-vinted-600 border-white shadow-lg scale-105'
                         : 'bg-white/10 text-white/80 border-white/20 hover:bg-white/20 hover:border-white/40'
@@ -116,7 +116,7 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
                 <Ruler className="w-4 h-4 mr-1" />
                 Taille
               </label>
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-5 gap-1 sm:gap-2">
                 {[
                   { value: 'xs', label: 'XS' },
                   { value: 's', label: 'S' },
@@ -132,7 +132,7 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
                       size: size.value as ClothingOptions['size']
                     }))}
                     className={`
-                      px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 border-2
+                      px-1 sm:px-3 py-3 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200 border-2
                       ${clothingOptions.size === size.value
                         ? 'bg-white text-vinted-600 border-white shadow-lg scale-105'
                         : 'bg-white/10 text-white/80 border-white/20 hover:bg-white/20 hover:border-white/40'
@@ -150,7 +150,7 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
               <label className="block text-sm font-medium text-white/80 mb-3">
                 Vue
               </label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-1 sm:gap-2">
                 {[
                   { value: 'normal', label: 'Normale' },
                   { value: 'mirror', label: 'Miroir' }
@@ -163,7 +163,7 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
                       mirror: option.value as ClothingOptions['mirror']
                     }))}
                     className={`
-                      px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 border-2
+                      px-2 sm:px-3 py-3 rounded-xl text-xs sm:text-sm font-medium transition-all duration-200 border-2
                       ${clothingOptions.mirror === option.value
                         ? 'bg-white text-vinted-600 border-white shadow-lg scale-105'
                         : 'bg-white/10 text-white/80 border-white/20 hover:bg-white/20 hover:border-white/40'
