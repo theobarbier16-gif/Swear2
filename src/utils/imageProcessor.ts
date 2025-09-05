@@ -31,7 +31,7 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
         filename: file.name,
         gender: options.gender,
         size: options.size,
-        mirror: options.mirror,
+        mirror: options.mirror === 'mirror' ? 'photo dans le miroir' : 'vue normale',
         timestamp: new Date().toISOString(),
       }),
     });
