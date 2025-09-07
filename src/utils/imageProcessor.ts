@@ -80,43 +80,9 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
     debugLog('📦 Préparation du payload...');
     const payload = {
       image: base64,
-      filename: file.name,
-      fileSize: file.size,
-      fileType: file.type,
       gender: options.gender,
       size: options.size,
-      mirror: options.mirror,
-      mirrorText: options.mirror === 'mirror' ? 'photo dans le miroir' : 'normale',
-      timestamp: new Date().toISOString(),
-      sessionId: generateSessionId(),
-      clientInfo: {
-        userAgent: navigator.userAgent,
-        isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
-        screenWidth: window.screen.width,
-        screenHeight: window.screen.height,
-        language: navigator.language,
-        platform: navigator.platform,
-        cookieEnabled: navigator.cookieEnabled,
-        onLine: navigator.onLine,
-      },
-      pageInfo: {
-        origin: window.location.origin,
-        referrer: document.referrer || window.location.href,
-        url: window.location.href,
-        title: document.title,
-      },
-      processingOptions: {
-        quality: 'high',
-        format: 'png',
-        enhanceColors: true,
-        removeBackground: false,
-        addShadow: true,
-      },
-      metadata: {
-        version: '1.0.0',
-        source: 'swear-app',
-        environment: import.meta.env.MODE || 'production',
-      }
+      mirror: options.mirror
     };
     
     const payloadSize = JSON.stringify(payload).length;
