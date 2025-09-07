@@ -86,7 +86,11 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
     };
     
     // Log du payload pour debug
-    debugLog(`📋 Payload préparé: gender=${payload.gender}, size=${payload.size}, mirror=${payload.mirror}`);
+    debugLog(`📋 Payload préparé:`);
+    debugLog(`  - gender: ${payload.gender}`);
+    debugLog(`  - size: ${payload.size}`);
+    debugLog(`  - mirror: ${payload.mirror}`);
+    debugLog(`  - image: ${base64.substring(0, 50)}...`);
     
     const payloadSize = JSON.stringify(payload).length;
     const payloadSizeMB = (payloadSize / (1024 * 1024)).toFixed(2);
