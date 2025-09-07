@@ -178,7 +178,7 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
                       className="sr-only"
                     />
                     <div className={`
-                      px-3 py-3 rounded-xl text-center text-sm font-medium transition-all duration-200 border-2
+                      px-2 py-3 rounded-xl text-center text-sm font-medium transition-all duration-200 border-2 min-h-[48px] flex items-center justify-center
                       ${clothingOptions.gender === option.value
                         ? 'bg-white text-vinted-600 border-white shadow-lg scale-105'
                         : 'bg-white/10 text-white/80 border-white/20 hover:bg-white/20 hover:border-white/40'
