@@ -54,23 +54,23 @@ const resizeImage = (file: File): Promise<File> => {
       const imgRatio = img.width / img.height;
       const targetRatio = targetWidth / targetHeight;
       
-      let drawWidth, drawHeight, offsetX, offsetY;
+      let drawWidth, drawHeight;
       
+      // Toujours remplir complètement le canvas (crop si nécessaire)
       if (imgRatio > targetRatio) {
-        // Image plus large que le ratio cible
-        drawWidth = targetWidth;
-        drawHeight = targetWidth / imgRatio;
-        offsetX = 0;
-        offsetY = (targetHeight - drawHeight) / 2;
-      } else {
-        // Image plus haute que le ratio cible
+        // Image plus large - on crop les côtés
         drawHeight = targetHeight;
         drawWidth = targetHeight * imgRatio;
-        offsetX = (targetWidth - drawWidth) / 2;
-        offsetY = 0;
+      } else {
+        // Image plus haute - on crop le haut/bas
+        drawWidth = targetWidth;
+        drawHeight = targetWidth / imgRatio;
       }
       
-      // Dessiner l'image redimensionnée
+      // Centrer l'image et la dessiner (crop automatique)
+      const offsetX = (targetWidth - drawWidth) / 2;
+      const offsetY = (targetHeight - drawHeight) / 2;
+      
       ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
       
       // Convertir en blob puis en File

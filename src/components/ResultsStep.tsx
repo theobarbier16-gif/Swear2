@@ -86,12 +86,12 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
               <p className="text-sm font-medium text-white/80 mb-4 flex items-center justify-center">
                 ORIGINAL
               </p>
-              <div className="rounded-xl overflow-hidden shadow-2xl border border-white/20 mx-auto" style={{ maxWidth: '400px' }}>
+              <div className="rounded-xl overflow-hidden shadow-2xl border border-white/20 mx-auto" style={{ width: '300px', height: '411px' }}>
                 {uploadedImage && (
                   <img 
                     src={uploadedImage} 
                     alt="Original"
-                    className="w-full h-auto object-contain bg-white/5"
+                    className="w-full h-full object-cover"
                   />
                 )}
               </div>
@@ -115,7 +115,7 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
           </div>
         ) : (
           <div className="flex justify-center">
-            <div className="rounded-xl overflow-hidden shadow-2xl border border-white/20" style={{ width: '400px', height: '548px' }}>
+            <div className="rounded-xl overflow-hidden shadow-2xl border border-white/20" style={{ width: '300px', height: '411px' }}>
               {generatedImage && (
                 <img 
                   src={generatedImage} 

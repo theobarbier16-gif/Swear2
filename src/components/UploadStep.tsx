@@ -72,17 +72,20 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
         
         let drawWidth, drawHeight, offsetX, offsetY;
         
+        // Toujours remplir complètement (crop si nécessaire)
         if (imgRatio > targetRatio) {
-          drawWidth = displayWidth;
-          drawHeight = displayWidth / imgRatio;
-          offsetX = 0;
-          offsetY = (displayHeight - drawHeight) / 2;
-        } else {
+          // Image plus large - crop les côtés
           drawHeight = displayHeight;
           drawWidth = displayHeight * imgRatio;
-          offsetX = (displayWidth - drawWidth) / 2;
-          offsetY = 0;
+        } else {
+          // Image plus haute - crop le haut/bas
+          drawWidth = displayWidth;
+          drawHeight = displayWidth / imgRatio;
         }
+        
+        // Centrer l'image
+        offsetX = (displayWidth - drawWidth) / 2;
+        offsetY = (displayHeight - drawHeight) / 2;
         
         // Dessiner l'image
         ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
