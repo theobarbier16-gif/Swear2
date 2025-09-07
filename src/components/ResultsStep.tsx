@@ -133,11 +133,12 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
         <button
           onClick={handleDownload}
           disabled={downloadInitiated}
+          style={{ color: '#09B1BA' }}
           className={`
             flex items-center justify-center px-8 py-4 font-medium rounded-xl transition-all duration-200
             ${downloadInitiated 
               ? 'bg-green-500 !text-white scale-95' 
-              : 'bg-white !text-vinted-600 hover:bg-white/90 hover:scale-105 shadow-xl'
+              : 'bg-white hover:bg-white/90 hover:scale-105 shadow-xl'
             }
           `}
         >
