@@ -316,7 +316,6 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
               ${isDragging ? 'bg-white scale-110 shadow-lg' : 'bg-white/20 backdrop-blur'}
               ${!isProcessing ? 'cursor-pointer hover:scale-110' : 'cursor-not-allowed'}
             `}>
-            onClick={triggerFileSelect}
               <Upload className={`
                 w-8 h-8 transition-colors duration-300
                 ${isDragging ? 'text-vinted-500' : 'text-white'}
