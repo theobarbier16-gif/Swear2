@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, User } from 'lucide-react';
 
 const Header: React.FC = () => {
   return (
@@ -16,7 +16,28 @@ const Header: React.FC = () => {
             </div>
           </div>
           
-          <div className="hidden md:flex items-center space-x-6 text-sm text-white/80">
+          <div className="flex items-center space-x-6">
+            {/* Navigation Links - Hidden on mobile */}
+            <nav className="hidden md:flex items-center space-x-6 text-sm text-white/80">
+              <a 
+                href="#contact" 
+                className="hover:text-white transition-colors duration-200 cursor-pointer"
+              >
+                Contact
+              </a>
+              <a 
+                href="#prix" 
+                className="hover:text-white transition-colors duration-200 cursor-pointer"
+              >
+                Prix
+              </a>
+              <button className="flex items-center hover:text-white transition-colors duration-200 bg-white/10 backdrop-blur-lg px-3 py-2 rounded-lg border border-white/20 hover:bg-white/20">
+                <User className="w-4 h-4 mr-2" />
+                Connexion
+              </button>
+            </nav>
+            
+            {/* Status indicator */}
             <span className="flex items-center">
               <div className="w-2 h-2 bg-white rounded-full mr-2 animate-pulse"></div>
               Traitement IA Disponible
