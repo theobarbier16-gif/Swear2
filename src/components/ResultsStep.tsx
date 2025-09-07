@@ -21,84 +21,149 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
     if (generatedImage) {
       setDownloadInitiated(true);
       
-      // Téléchargement optimisé pour mobile
-      if (generatedImage.startsWith('blob:')) {
-        // Pour les blobs, convertir en base64 puis télécharger
-        fetch(generatedImage)
-          .then(response => response.blob())
-          .then(blob => {
-            // Créer un lien de téléchargement compatible mobile
-            const url = window.URL.createObjectURL(blob);
+      // Solution mobile-first pour le téléchargement
+      const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      const downloadImage = async () => {
+        try {
+          let imageBlob;
+          
+          // Convertir l'image en blob selon son type
+          if (generatedImage.startsWith('blob:')) {
+            const response = await fetch(generatedImage);
+            imageBlob = await response.blob();
+          } else if (generatedImage.startsWith('data:image/')) {
+            // Convertir base64 en blob
+            const response = await fetch(generatedImage);
+            imageBlob = await response.blob();
+          } else {
+            // URL externe - essayer de la récupérer
+            try {
+              const response = await fetch(generatedImage);
+              imageBlob = await response.blob();
+            } catch {
+              // Si on ne peut pas récupérer l'image, ouvrir dans un nouvel onglet
+              window.open(generatedImage, '_blank');
+              return;
+            }
+          }
+          
+          // Créer un nom de fichier unique
+          const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '');
+          const downloadFileName = `swear-enhanced-${timestamp}.jpg`;
+          
+          if (isMobile) {
+            // Sur mobile, utiliser l'API Web Share si disponible
+            if (navigator.share && navigator.canShare) {
+              try {
+                const file = new File([imageBlob], downloadFileName, { type: 'image/jpeg' });
+                if (navigator.canShare({ files: [file] })) {
+                  await navigator.share({
+                    title: 'Photo Swear améliorée',
+                    text: 'Voici ma photo mode améliorée avec Swear',
+                    files: [file]
+                  });
+                  return;
+                }
+              } catch (shareError) {
+                console.log('Partage échoué, tentative de téléchargement direct');
+              }
+            }
+            
+            // Fallback mobile : créer une URL et ouvrir dans un nouvel onglet
+            const url = URL.createObjectURL(imageBlob);
+            const newWindow = window.open();
+            if (newWindow) {
+              newWindow.document.write(`
+                <html>
+                  <head>
+                    <title>Télécharger votre image</title>
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <style>
+                      body { 
+                        margin: 0; 
+                        padding: 20px; 
+                        font-family: Arial, sans-serif; 
+                        background: #f0f0f0;
+                        text-align: center;
+                      }
+                      img { 
+                        max-width: 100%; 
+                        height: auto; 
+                        border-radius: 10px;
+                        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+                        margin: 20px 0;
+                      }
+                      .download-btn {
+                        display: inline-block;
+                        padding: 15px 30px;
+                        background: #09B1BA;
+                        color: white;
+                        text-decoration: none;
+                        border-radius: 8px;
+                        font-weight: bold;
+                        margin: 10px;
+                      }
+                      .instructions {
+                        background: white;
+                        padding: 20px;
+                        border-radius: 10px;
+                        margin: 20px 0;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                      }
+                    </style>
+                  </head>
+                  <body>
+                    <h2>🎉 Votre photo Swear est prête !</h2>
+                    <img src="${url}" alt="Photo améliorée" />
+                    <div class="instructions">
+                      <p><strong>Pour sauvegarder sur mobile :</strong></p>
+                      <p>📱 Appuyez longuement sur l'image</p>
+                      <p>💾 Sélectionnez "Enregistrer l'image"</p>
+                      <p>📁 L'image sera sauvée dans votre galerie</p>
+                    </div>
+                    <a href="${url}" download="${downloadFileName}" class="download-btn">
+                      📥 Télécharger
+                    </a>
+                  </body>
+                </html>
+              `);
+              newWindow.document.close();
+            } else {
+              // Si on ne peut pas ouvrir une nouvelle fenêtre, créer un lien temporaire
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = downloadFileName;
+              link.style.display = 'none';
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }
+            
+            // Nettoyer après un délai
+            setTimeout(() => URL.revokeObjectURL(url), 10000);
+            
+          } else {
+            // Sur desktop, téléchargement direct
+            const url = URL.createObjectURL(imageBlob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `enhanced-${fileName.replace(/\.[^/.]+$/, '')}.jpg`;
-            
-            // Pour mobile, ouvrir dans un nouvel onglet si le téléchargement direct échoue
-            if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-              link.target = '_blank';
-              link.rel = 'noopener noreferrer';
-            }
-            
+            link.download = downloadFileName;
+            link.style.display = 'none';
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            
-            // Nettoyer l'URL temporaire
-            setTimeout(() => window.URL.revokeObjectURL(url), 100);
-          })
-          .catch(error => {
-            console.error('Erreur téléchargement:', error);
-            // Fallback: ouvrir l'image dans un nouvel onglet
-            window.open(generatedImage, '_blank');
-          });
-      } else if (generatedImage.startsWith('data:image/')) {
-        // Pour les images base64
-        try {
-          const link = document.createElement('a');
-          link.href = generatedImage;
-          link.download = `enhanced-${fileName.replace(/\.[^/.]+$/, '')}.jpg`;
-          
-          // Pour mobile, ouvrir dans un nouvel onglet si nécessaire
-          if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-            // Convertir base64 en blob pour un meilleur support mobile
-            const byteCharacters = atob(generatedImage.split(',')[1]);
-            const byteNumbers = new Array(byteCharacters.length);
-            for (let i = 0; i < byteCharacters.length; i++) {
-              byteNumbers[i] = byteCharacters.charCodeAt(i);
-            }
-            const byteArray = new Uint8Array(byteNumbers);
-            const blob = new Blob([byteArray], { type: 'image/jpeg' });
-            const url = window.URL.createObjectURL(blob);
-            
-            link.href = url;
-            link.target = '_blank';
-            link.rel = 'noopener noreferrer';
-            
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            setTimeout(() => window.URL.revokeObjectURL(url), 100);
-          } else {
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
           }
+          
         } catch (error) {
-          console.error('Erreur téléchargement base64:', error);
+          console.error('Erreur téléchargement:', error);
+          // Dernier fallback : ouvrir l'image dans un nouvel onglet
           window.open(generatedImage, '_blank');
         }
-      } else {
-        // Pour les URLs externes
-        const link = document.createElement('a');
-        link.href = generatedImage;
-        link.download = `enhanced-${fileName.replace(/\.[^/.]+$/, '')}.jpg`;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
+      };
+      
+      downloadImage();
       
       setTimeout(() => setDownloadInitiated(false), 2000);
     }
