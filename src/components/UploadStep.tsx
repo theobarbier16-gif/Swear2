@@ -136,7 +136,7 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
         </p>
         
         {/* Trust Indicators */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mt-8">
+        <div className="hidden sm:flex flex-col sm:flex-row items-center justify-center gap-6 mt-8">
           <div className="flex items-center text-white/90">
             <div className="w-2 h-2 bg-white rounded-full mr-3"></div>
             <span className="text-sm font-medium">Rendus ultra-réalistes</span>
