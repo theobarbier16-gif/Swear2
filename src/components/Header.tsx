@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, User, Menu, X } from 'lucide-react';
+import { Sparkles, User, Menu, X, Upload } from 'lucide-react';
 
 const Header: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -21,6 +21,10 @@ const Header: React.FC = () => {
           <div className="flex items-center space-x-6">
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center space-x-6 text-sm text-white/80">
+              <button className="flex items-center hover:text-white transition-colors duration-200 bg-white/10 backdrop-blur-lg px-3 py-2 rounded-lg border border-white/20 hover:bg-white/20">
+                <Upload className="w-4 h-4 mr-2" />
+                Upload
+              </button>
               <a 
                 href="#contact" 
                 className="hover:text-white transition-colors duration-200 cursor-pointer"
@@ -71,6 +75,13 @@ const Header: React.FC = () => {
               >
                 Prix
               </a>
+              <button 
+                className="flex items-center text-white/80 hover:text-white transition-colors duration-200 bg-white/10 backdrop-blur-lg px-4 py-2 rounded-lg border border-white/20 hover:bg-white/20 text-left"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Upload
+              </button>
               <button 
                 className="flex items-center text-white/80 hover:text-white transition-colors duration-200 bg-white/10 backdrop-blur-lg px-4 py-2 rounded-lg border border-white/20 hover:bg-white/20 text-left"
                 onClick={() => setIsMobileMenuOpen(false)}
