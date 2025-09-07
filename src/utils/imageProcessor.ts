@@ -170,19 +170,7 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
           // Headers optimisés pour mobile et CORS
           const headers = {
             'Content-Type': 'application/json',
-            'Accept': 'application/json, */*',
-            'X-Requested-With': 'XMLHttpRequest',
           };
-          
-          // Headers conditionnels selon l'URL
-          if (webhookUrl.startsWith('https://n8n-automatisation.fr')) {
-            headers['Origin'] = window.location.origin;
-            headers['Cache-Control'] = 'no-cache';
-            headers['Pragma'] = 'no-cache';
-          } else if (webhookUrl.includes('cors-anywhere') || webhookUrl.includes('allorigins') || webhookUrl.includes('corsproxy')) {
-            // Pour les proxies CORS, headers simplifiés
-            delete headers['X-Requested-With'];
-          }
           
           debugLog(`📋 Headers envoyés: ${JSON.stringify(headers)}`);
           
@@ -191,8 +179,6 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
             headers: headers,
             body: JSON.stringify(payload),
             signal: controller.signal,
-            mode: webhookUrl.includes('cors-anywhere') || webhookUrl.includes('allorigins') || webhookUrl.includes('corsproxy') ? 'cors' : 'no-cors',
-            credentials: 'omit',
           });
           
           clearTimeout(timeoutId);
