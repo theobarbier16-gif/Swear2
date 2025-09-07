@@ -21,13 +21,84 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
     if (generatedImage) {
       setDownloadInitiated(true);
       
-      // Simulate download
-      const link = document.createElement('a');
-      link.href = generatedImage;
-      link.download = `enhanced-${fileName}`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Téléchargement optimisé pour mobile
+      if (generatedImage.startsWith('blob:')) {
+        // Pour les blobs, convertir en base64 puis télécharger
+        fetch(generatedImage)
+          .then(response => response.blob())
+          .then(blob => {
+            // Créer un lien de téléchargement compatible mobile
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `enhanced-${fileName.replace(/\.[^/.]+$/, '')}.jpg`;
+            
+            // Pour mobile, ouvrir dans un nouvel onglet si le téléchargement direct échoue
+            if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+              link.target = '_blank';
+              link.rel = 'noopener noreferrer';
+            }
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Nettoyer l'URL temporaire
+            setTimeout(() => window.URL.revokeObjectURL(url), 100);
+          })
+          .catch(error => {
+            console.error('Erreur téléchargement:', error);
+            // Fallback: ouvrir l'image dans un nouvel onglet
+            window.open(generatedImage, '_blank');
+          });
+      } else if (generatedImage.startsWith('data:image/')) {
+        // Pour les images base64
+        try {
+          const link = document.createElement('a');
+          link.href = generatedImage;
+          link.download = `enhanced-${fileName.replace(/\.[^/.]+$/, '')}.jpg`;
+          
+          // Pour mobile, ouvrir dans un nouvel onglet si nécessaire
+          if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+            // Convertir base64 en blob pour un meilleur support mobile
+            const byteCharacters = atob(generatedImage.split(',')[1]);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: 'image/jpeg' });
+            const url = window.URL.createObjectURL(blob);
+            
+            link.href = url;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            setTimeout(() => window.URL.revokeObjectURL(url), 100);
+          } else {
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          }
+        } catch (error) {
+          console.error('Erreur téléchargement base64:', error);
+          window.open(generatedImage, '_blank');
+        }
+      } else {
+        // Pour les URLs externes
+        const link = document.createElement('a');
+        link.href = generatedImage;
+        link.download = `enhanced-${fileName.replace(/\.[^/.]+$/, '')}.jpg`;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
       
       setTimeout(() => setDownloadInitiated(false), 2000);
     }
@@ -141,16 +212,19 @@ const ResultsStep: React.FC<ResultsStepProps> = ({
               : 'bg-white hover:bg-white/90 hover:scale-105 shadow-xl'
             }
           `}
+          title="Télécharger l'image améliorée"
         >
           {downloadInitiated ? (
             <>
-              <Download className="w-5 h-5 mr-2" />
-              Téléchargé !
+              <Download className="w-5 h-5 mr-2 animate-bounce" />
+              <span className="hidden sm:inline">Téléchargé !</span>
+              <span className="sm:hidden">OK !</span>
             </>
           ) : (
             <>
               <Download className="w-5 h-5 mr-2" />
-              Télécharger la Photo Améliorée
+              <span className="hidden sm:inline">Télécharger la Photo Améliorée</span>
+              <span className="sm:hidden">Télécharger</span>
             </>
           )}
         </button>
