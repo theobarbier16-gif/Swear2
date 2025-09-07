@@ -78,10 +78,6 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
     
     // Préparer le payload
     debugLog('📦 Préparation du payload...');
-      image: base64,
-      gender: options.gender,
-      size: options.size,
-      mirror: options.mirror
     // Traiter la valeur mirror
     const mirrorValue = options.mirror === 'mirror' ? 'photo dans le miroir' : 'normal';
     
