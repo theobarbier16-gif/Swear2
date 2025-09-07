@@ -127,6 +127,22 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
         <p className="text-xl text-white/90 max-w-2xl mx-auto leading-relaxed drop-shadow">
           Ne perdez plus de ventes à cause de photos qui ne donnent pas envie. Avec Swear, générez en un clic des images professionnelles qui mettent vos vêtements en valeur et boostent vos annonces
         </p>
+        
+        {/* Trust Indicators */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mt-8">
+          <div className="flex items-center text-white/90">
+            <div className="w-2 h-2 bg-white rounded-full mr-3"></div>
+            <span className="text-sm font-medium">Rendus ultra-réalistes</span>
+          </div>
+          <div className="flex items-center text-white/90">
+            <div className="w-2 h-2 bg-white rounded-full mr-3"></div>
+            <span className="text-sm font-medium">Génération en moins de 10s</span>
+          </div>
+          <div className="flex items-center text-white/90">
+            <div className="w-2 h-2 bg-white rounded-full mr-3"></div>
+            <span className="text-sm font-medium">Adapté à Vinted & marketplaces</span>
+          </div>
+        </div>
       </div>
 
       {/* Error Message */}
@@ -360,21 +376,6 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
         </div>
       </div>
       
-      {/* Trust Indicators */}
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mt-8">
-        <div className="flex items-center text-white/90">
-          <div className="w-2 h-2 bg-white rounded-full mr-3"></div>
-          <span className="text-sm font-medium">Rendus ultra-réalistes</span>
-        </div>
-        <div className="flex items-center text-white/90">
-          <div className="w-2 h-2 bg-white rounded-full mr-3"></div>
-          <span className="text-sm font-medium">Génération en moins de 10s</span>
-        </div>
-        <div className="flex items-center text-white/90">
-          <div className="w-2 h-2 bg-white rounded-full mr-3"></div>
-          <span className="text-sm font-medium">Adapté à Vinted & marketplaces</span>
-        </div>
-      </div>
     </div>
   );
 };
