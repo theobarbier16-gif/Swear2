@@ -125,7 +125,7 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
           Donnez vie à vos vêtements en quelques secondes
         </h1>
         <p className="text-xl text-white/90 max-w-2xl mx-auto leading-relaxed drop-shadow">
-          Ne perdez plus de ventes à cause de photos qui ne donnent pas envie. Avec Swear, générez en un clic des images professionnelles qui mettent vos vêtements en valeur et boostent vos annonces
+          Ne perdez plus de ventes à cause de photos qui ne donnent pas envie. Avec Swear, générez en un clic des images professionnelles qui mettent vos vêtements en valeur et boostent vos ventes
         </p>
         
         {/* Trust Indicators */}
