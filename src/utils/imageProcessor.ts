@@ -81,14 +81,42 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
     const payload = {
       image: base64,
       filename: file.name,
+      fileSize: file.size,
+      fileType: file.type,
       gender: options.gender,
       size: options.size,
-      mirror: options.mirror === 'mirror' ? 'photo dans le miroir' : 'normale',
+      mirror: options.mirror,
+      mirrorText: options.mirror === 'mirror' ? 'photo dans le miroir' : 'normale',
       timestamp: new Date().toISOString(),
-      userAgent: navigator.userAgent,
-      isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
-      origin: window.location.origin,
-      referrer: document.referrer || window.location.href
+      sessionId: generateSessionId(),
+      clientInfo: {
+        userAgent: navigator.userAgent,
+        isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
+        screenWidth: window.screen.width,
+        screenHeight: window.screen.height,
+        language: navigator.language,
+        platform: navigator.platform,
+        cookieEnabled: navigator.cookieEnabled,
+        onLine: navigator.onLine,
+      },
+      pageInfo: {
+        origin: window.location.origin,
+        referrer: document.referrer || window.location.href,
+        url: window.location.href,
+        title: document.title,
+      },
+      processingOptions: {
+        quality: 'high',
+        format: 'png',
+        enhanceColors: true,
+        removeBackground: false,
+        addShadow: true,
+      },
+      metadata: {
+        version: '1.0.0',
+        source: 'swear-app',
+        environment: import.meta.env.MODE || 'production',
+      }
     };
     
     const payloadSize = JSON.stringify(payload).length;
@@ -383,6 +411,11 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
       error: errorMessage,
     };
   }
+};
+
+// Fonction pour générer un ID de session unique
+const generateSessionId = (): string => {
+  return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 };
 
 const fileToBase64 = (file: File): Promise<string> => {
