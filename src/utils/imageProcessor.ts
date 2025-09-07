@@ -24,6 +24,78 @@ const debugLog = (message: string) => {
   }
 };
 
+// Fonction pour redimensionner l'image à 896x1152
+const resizeImage = (file: File): Promise<File> => {
+  return new Promise((resolve, reject) => {
+    debugLog('🔄 Redimensionnement de l\'image à 896x1152...');
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    if (!ctx) {
+      reject(new Error('Impossible de créer le contexte canvas'));
+      return;
+    }
+    
+    img.onload = () => {
+      // Définir les dimensions cibles
+      const targetWidth = 896;
+      const targetHeight = 1152;
+      
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+      
+      // Fond blanc
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, targetWidth, targetHeight);
+      
+      // Calculer les dimensions pour maintenir le ratio
+      const imgRatio = img.width / img.height;
+      const targetRatio = targetWidth / targetHeight;
+      
+      let drawWidth, drawHeight, offsetX, offsetY;
+      
+      if (imgRatio > targetRatio) {
+        // Image plus large que le ratio cible
+        drawWidth = targetWidth;
+        drawHeight = targetWidth / imgRatio;
+        offsetX = 0;
+        offsetY = (targetHeight - drawHeight) / 2;
+      } else {
+        // Image plus haute que le ratio cible
+        drawHeight = targetHeight;
+        drawWidth = targetHeight * imgRatio;
+        offsetX = (targetWidth - drawWidth) / 2;
+        offsetY = 0;
+      }
+      
+      // Dessiner l'image redimensionnée
+      ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+      
+      // Convertir en blob puis en File
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const resizedFile = new File([blob], file.name, {
+            type: 'image/jpeg',
+            lastModified: Date.now()
+          });
+          debugLog(`✅ Image redimensionnée: ${resizedFile.size} bytes`);
+          resolve(resizedFile);
+        } else {
+          reject(new Error('Impossible de créer le blob redimensionné'));
+        }
+      }, 'image/jpeg', 0.9);
+    };
+    
+    img.onerror = () => {
+      reject(new Error('Impossible de charger l\'image'));
+    };
+    
+    img.src = URL.createObjectURL(file);
+  });
+};
+
 export interface WebhookResponse {
   success: boolean;
   imageUrl?: string;
@@ -57,11 +129,20 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
     
     debugLog(`✅ Fichier validé: ${file.name} (${file.size} bytes, ${file.type})`);
     
+    // Redimensionner l'image à 896x1152
+    let processedFile;
+    try {
+      processedFile = await resizeImage(file);
+    } catch (error) {
+      debugLog(`❌ Erreur redimensionnement: ${error}`);
+      throw new Error('Impossible de redimensionner l\'image');
+    }
+    
     // Convert file to base64
     debugLog('🔄 Début conversion base64...');
     let base64;
     try {
-      base64 = await fileToBase64(file);
+      base64 = await fileToBase64(processedFile);
       const base64SizeKB = (base64.length * 0.75 / 1024).toFixed(2); // Approximation taille base64
       debugLog(`✅ Conversion réussie: ${base64.length} caractères (~${base64SizeKB} KB)`);
     } catch (error) {

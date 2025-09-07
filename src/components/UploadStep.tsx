@@ -23,17 +23,95 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
     const imageFile = files.find(file => file.type.startsWith('image/'));
     
     if (imageFile) {
-      const url = URL.createObjectURL(imageFile);
-      onImageUpload(url, imageFile.name, imageFile, clothingOptions);
+      // Créer une version redimensionnée pour l'affichage
+      resizeImageForDisplay(imageFile).then(({ displayUrl, processedFile }) => {
+        onImageUpload(displayUrl, imageFile.name, processedFile, clothingOptions);
+      });
     }
   }, [onImageUpload, clothingOptions]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.type.startsWith('image/')) {
-      const url = URL.createObjectURL(file);
-      onImageUpload(url, file.name, file, clothingOptions);
+      // Créer une version redimensionnée pour l'affichage
+      resizeImageForDisplay(file).then(({ displayUrl, processedFile }) => {
+        onImageUpload(displayUrl, file.name, processedFile, clothingOptions);
+      });
     }
+  };
+
+  // Fonction pour redimensionner l'image pour l'affichage
+  const resizeImageForDisplay = (file: File): Promise<{ displayUrl: string, processedFile: File }> => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      if (!ctx) {
+        // Fallback si canvas non disponible
+        const url = URL.createObjectURL(file);
+        resolve({ displayUrl: url, processedFile: file });
+        return;
+      }
+      
+      img.onload = () => {
+        // Dimensions cibles pour l'affichage (plus petites)
+        const displayWidth = 300;
+        const displayHeight = 400;
+        
+        canvas.width = displayWidth;
+        canvas.height = displayHeight;
+        
+        // Fond blanc
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, displayWidth, displayHeight);
+        
+        // Calculer les dimensions pour maintenir le ratio
+        const imgRatio = img.width / img.height;
+        const targetRatio = displayWidth / displayHeight;
+        
+        let drawWidth, drawHeight, offsetX, offsetY;
+        
+        if (imgRatio > targetRatio) {
+          drawWidth = displayWidth;
+          drawHeight = displayWidth / imgRatio;
+          offsetX = 0;
+          offsetY = (displayHeight - drawHeight) / 2;
+        } else {
+          drawHeight = displayHeight;
+          drawWidth = displayHeight * imgRatio;
+          offsetX = (displayWidth - drawWidth) / 2;
+          offsetY = 0;
+        }
+        
+        // Dessiner l'image
+        ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+        
+        // Créer l'URL d'affichage
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const displayUrl = URL.createObjectURL(blob);
+            const processedFile = new File([blob], file.name, {
+              type: 'image/jpeg',
+              lastModified: Date.now()
+            });
+            resolve({ displayUrl, processedFile });
+          } else {
+            // Fallback
+            const url = URL.createObjectURL(file);
+            resolve({ displayUrl: url, processedFile: file });
+          }
+        }, 'image/jpeg', 0.9);
+      };
+      
+      img.onerror = () => {
+        // Fallback en cas d'erreur
+        const url = URL.createObjectURL(file);
+        resolve({ displayUrl: url, processedFile: file });
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
   };
 
   return (
