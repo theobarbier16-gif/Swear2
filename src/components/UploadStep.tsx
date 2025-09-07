@@ -10,10 +10,17 @@ interface UploadStepProps {
 
 const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, processingError }) => {
   const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [clothingOptions, setClothingOptions] = useState<ClothingOptions>({
     gender: 'femme',
     size: 'm'
   });
+
+  const triggerFileSelect = () => {
+    if (!isProcessing && fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -295,6 +302,7 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
           onDragLeave={() => setIsDragging(false)}
         >
           <input
+            ref={fileInputRef}
             type="file"
             accept="image/*"
             onChange={handleFileSelect}
@@ -306,6 +314,7 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
             <div className={`
               w-16 h-16 rounded-full flex items-center justify-center mb-6 transition-all duration-300
               ${isDragging ? 'bg-white scale-110 shadow-lg' : 'bg-white/20 backdrop-blur'}
+              ${!isProcessing ? 'cursor-pointer hover:scale-110' : 'cursor-not-allowed'}
             `}>
               <Upload className={`
                 w-8 h-8 transition-colors duration-300
