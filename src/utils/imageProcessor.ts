@@ -78,19 +78,29 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
     
     // Préparer le payload
     debugLog('📦 Préparation du payload...');
+    
+    // Traiter la valeur mirror
+    const mirrorValue = options.mirror === 'mirror' ? 'photo dans le miroir' : 'normal';
+    
     const payload = {
       image: base64,
       gender: options.gender,
       size: options.size,
-      mirror: options.mirror === 'mirror' ? 'photo dans le miroir' : 'normal'
+      mirror: mirrorValue
     };
     
     // Log du payload pour debug
-    debugLog(`📋 Payload préparé:`);
-    debugLog(`  - gender: ${payload.gender}`);
-    debugLog(`  - size: ${payload.size}`);
-    debugLog(`  - mirror: ${payload.mirror}`);
-    debugLog(`  - image: ${base64.substring(0, 50)}...`);
+    debugLog(`📋 Payload préparé avec les paramètres:`);
+    debugLog(`  - gender: "${payload.gender}"`);
+    debugLog(`  - size: "${payload.size}"`);
+    debugLog(`  - mirror: "${payload.mirror}"`);
+    debugLog(`  - image: ${base64.length} caractères base64`);
+    
+    // Vérifier que tous les paramètres sont présents
+    if (!payload.gender || !payload.size || !payload.mirror) {
+      debugLog('❌ Paramètres manquants dans le payload!');
+      debugLog(`Options reçues: ${JSON.stringify(options)}`);
+    }
     
     const payloadSize = JSON.stringify(payload).length;
     const payloadSizeMB = (payloadSize / (1024 * 1024)).toFixed(2);
