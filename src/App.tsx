@@ -25,8 +25,16 @@ export interface ClothingOptions {
 function App() {
   console.log('🚀 === DEBUT FUNCTION APP ===');
   console.log('🧪 APP - Test de log dans App component');
-  const { user } = useAuth();
-  console.log('🚀 User from useAuth:', user);
+  
+  let user = null;
+  try {
+    const authResult = useAuth();
+    user = authResult.user;
+    console.log('🚀 User from useAuth:', user);
+  } catch (error) {
+    console.error('❌ Erreur useAuth:', error);
+  }
+  
   const [currentView, setCurrentView] = useState<AppView>('main');
   const [currentStep, setCurrentStep] = useState<ProcessingStep>('upload');
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
