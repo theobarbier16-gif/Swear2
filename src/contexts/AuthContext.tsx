@@ -1,4 +1,13 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged,
+  User as FirebaseUser,
+  updateProfile
+} from 'firebase/auth';
+import { auth } from '../lib/firebase';
 import { AuthState, AuthContextType, LoginCredentials, RegisterCredentials, User } from '../types/auth';
 
 // Actions pour le reducer
@@ -53,47 +62,53 @@ export const useAuth = () => {
   return context;
 };
 
-// Simulation d'API - À remplacer par de vraies API calls
-const simulateApiCall = (delay: number = 1000) => 
-  new Promise(resolve => setTimeout(resolve, delay));
+// Fonction pour convertir un utilisateur Firebase en utilisateur de l'app
+const mapFirebaseUserToUser = (firebaseUser: FirebaseUser): User => {
+  const email = firebaseUser.email || '';
+  const displayName = firebaseUser.displayName || '';
+  
+  // Extraire prénom et nom du displayName ou de l'email
+  let firstName = '';
+  let lastName = '';
+  
+  if (displayName) {
+    const nameParts = displayName.split(' ');
+    firstName = nameParts[0] || '';
+    lastName = nameParts.slice(1).join(' ') || '';
+  } else {
+    // Utiliser la partie avant @ de l'email comme prénom par défaut
+    firstName = email.split('@')[0] || 'Utilisateur';
+  }
 
-const mockUsers: User[] = [
-  {
-    id: '1',
-    email: 'demo@swear.com',
-    firstName: 'Demo',
-    lastName: 'User',
-    createdAt: new Date().toISOString(),
+  return {
+    id: firebaseUser.uid,
+    email: email,
+    firstName: firstName,
+    lastName: lastName,
+    createdAt: firebaseUser.metadata.creationTime || new Date().toISOString(),
     subscription: {
-      plan: 'premium',
-      creditsRemaining: 50,
-      expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      plan: 'free',
+      creditsRemaining: 3, // 3 essais gratuits par défaut
     },
-  },
-];
+  };
+};
 
 // Provider
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Vérifier si l'utilisateur est connecté au chargement
+  // Écouter les changements d'état d'authentification Firebase
   useEffect(() => {
-    const checkAuthStatus = async () => {
-      try {
-        const savedUser = localStorage.getItem('swear_user');
-        if (savedUser) {
-          const user = JSON.parse(savedUser);
-          dispatch({ type: 'SET_USER', payload: user });
-        } else {
-          dispatch({ type: 'SET_LOADING', payload: false });
-        }
-      } catch (error) {
-        console.error('Error checking auth status:', error);
-        dispatch({ type: 'SET_LOADING', payload: false });
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        const user = mapFirebaseUserToUser(firebaseUser);
+        dispatch({ type: 'SET_USER', payload: user });
+      } else {
+        dispatch({ type: 'SET_USER', payload: null });
       }
-    };
+    });
 
-    checkAuthStatus();
+    return () => unsubscribe();
   }, []);
 
   const login = async (credentials: LoginCredentials) => {
@@ -101,26 +116,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: 'CLEAR_ERROR' });
 
     try {
-      await simulateApiCall(1500);
-
-      // Simulation de validation
-      const user = mockUsers.find(u => u.email === credentials.email);
+      const userCredential = await signInWithEmailAndPassword(
+        auth, 
+        credentials.email, 
+        credentials.password
+      );
       
-      if (!user) {
-        throw new Error('Email ou mot de passe incorrect');
+      // L'utilisateur sera automatiquement mis à jour via onAuthStateChanged
+      console.log('Connexion réussie:', userCredential.user.email);
+      
+    } catch (error: any) {
+      let errorMessage = 'Erreur de connexion';
+      
+      switch (error.code) {
+        case 'auth/user-not-found':
+          errorMessage = 'Aucun compte trouvé avec cet email';
+          break;
+        case 'auth/wrong-password':
+          errorMessage = 'Mot de passe incorrect';
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'Email invalide';
+          break;
+        case 'auth/user-disabled':
+          errorMessage = 'Ce compte a été désactivé';
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = 'Trop de tentatives. Réessayez plus tard';
+          break;
+        case 'auth/invalid-credential':
+          errorMessage = 'Email ou mot de passe incorrect';
+          break;
+        default:
+          errorMessage = error.message || 'Erreur de connexion';
       }
-
-      // Simulation de vérification du mot de passe
-      if (credentials.password.length < 6) {
-        throw new Error('Email ou mot de passe incorrect');
-      }
-
-      // Sauvegarder l'utilisateur
-      localStorage.setItem('swear_user', JSON.stringify(user));
-      dispatch({ type: 'SET_USER', payload: user });
-
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erreur de connexion';
+      
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
       throw error;
     }
@@ -131,44 +161,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: 'CLEAR_ERROR' });
 
     try {
-      await simulateApiCall(2000);
+      const userCredential = await createUserWithEmailAndPassword(
+        auth, 
+        credentials.email, 
+        credentials.password
+      );
 
-      // Vérifier si l'email existe déjà
-      const existingUser = mockUsers.find(u => u.email === credentials.email);
-      if (existingUser) {
-        throw new Error('Un compte avec cet email existe déjà');
+      // Mettre à jour le profil avec le nom complet
+      await updateProfile(userCredential.user, {
+        displayName: `${credentials.firstName} ${credentials.lastName}`
+      });
+
+      console.log('Inscription réussie:', userCredential.user.email);
+      
+      // L'utilisateur sera automatiquement mis à jour via onAuthStateChanged
+      
+    } catch (error: any) {
+      let errorMessage = 'Erreur lors de la création du compte';
+      
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          errorMessage = 'Un compte avec cet email existe déjà';
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'Email invalide';
+          break;
+        case 'auth/weak-password':
+          errorMessage = 'Le mot de passe doit contenir au moins 6 caractères';
+          break;
+        case 'auth/operation-not-allowed':
+          errorMessage = 'La création de compte est temporairement désactivée';
+          break;
+        default:
+          errorMessage = error.message || 'Erreur lors de la création du compte';
       }
-
-      // Créer un nouvel utilisateur
-      const newUser: User = {
-        id: Date.now().toString(),
-        email: credentials.email,
-        firstName: credentials.firstName,
-        lastName: credentials.lastName,
-        createdAt: new Date().toISOString(),
-        subscription: {
-          plan: 'free',
-          creditsRemaining: 3, // 3 essais gratuits
-        },
-      };
-
-      // Ajouter à la liste mock (en production, ceci serait fait côté serveur)
-      mockUsers.push(newUser);
-
-      // Sauvegarder l'utilisateur
-      localStorage.setItem('swear_user', JSON.stringify(newUser));
-      dispatch({ type: 'SET_USER', payload: newUser });
-
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Erreur lors de la création du compte';
+      
       dispatch({ type: 'SET_ERROR', payload: errorMessage });
       throw error;
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('swear_user');
-    dispatch({ type: 'LOGOUT' });
+  const logout = async () => {
+    try {
+      await signOut(auth);
+      dispatch({ type: 'LOGOUT' });
+      console.log('Déconnexion réussie');
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+      dispatch({ type: 'SET_ERROR', payload: 'Erreur lors de la déconnexion' });
+    }
   };
 
   const clearError = () => {
