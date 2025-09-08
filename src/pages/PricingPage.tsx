@@ -4,9 +4,10 @@ import { ArrowLeft, Check, Sparkles, Zap, Crown } from 'lucide-react';
 interface PricingPageProps {
   onBack: () => void;
   userEmail?: string;
+  currentUserEmail?: string;
 }
 
-const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail }) => {
+const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUserEmail }) => {
   const plans = [
     {
       name: 'Free Plan',
@@ -71,6 +72,12 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail }) => {
     if (planName === 'Free Plan') {
       // L'utilisateur reste sur le plan gratuit
       onBack();
+    } else if (planName === 'Starter') {
+      // Rediriger vers Stripe avec l'email de l'utilisateur
+      const email = currentUserEmail || userEmail || 'exemple@gmail.com';
+      const encodedEmail = encodeURIComponent(email);
+      const stripeUrl = `https://buy.stripe.com/test_fZucMYcHubsj23adLG2VG00?prefilled_email=${encodedEmail}`;
+      window.open(stripeUrl, '_blank');
     } else {
       // Rediriger vers le système de paiement (à implémenter)
       alert(`Redirection vers le paiement pour le plan ${planName}`);

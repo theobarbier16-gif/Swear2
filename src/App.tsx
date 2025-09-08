@@ -9,6 +9,7 @@ import ResultsStep from './components/ResultsStep';
 import Footer from './components/Footer';
 import LoginPage from './pages/LoginPage';
 import PricingPage from './pages/PricingPage';
+import { useAuth } from './contexts/AuthContext';
 
 export type ProcessingStep = 'upload' | 'processing' | 'results';
 export type AppView = 'main' | 'login' | 'pricing';
@@ -20,6 +21,7 @@ export interface ClothingOptions {
 }
 
 function App() {
+  const { user } = useAuth();
   const [currentView, setCurrentView] = useState<AppView>('main');
   const [currentStep, setCurrentStep] = useState<ProcessingStep>('upload');
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -128,7 +130,11 @@ function App() {
   if (currentView === 'pricing') {
     return (
       <AuthProvider>
-        <PricingPage onBack={handleBackToMain} userEmail={userEmail} />
+        <PricingPage 
+          onBack={handleBackToMain} 
+          userEmail={userEmail}
+          currentUserEmail={user?.email}
+        />
       </AuthProvider>
     );
   }
