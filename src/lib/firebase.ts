@@ -3,6 +3,10 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getAnalytics } from 'firebase/analytics';
 
+console.log('🚀 === DEBUT FIREBASE.TS ===');
+console.log('🚀 Environment:', import.meta.env.MODE);
+console.log('🚀 Base URL:', import.meta.env.BASE_URL);
+
 const firebaseConfig = {
   apiKey: "AIzaSyDRoNJkXmR7C3dt142AAz_hGCPpfKxkXxE",
   authDomain: "swear-30c84.firebaseapp.com",
@@ -13,7 +17,10 @@ const firebaseConfig = {
   measurementId: "G-2M6CF3JFJ8"
 };
 
+console.log('🚀 Firebase config:', firebaseConfig);
+
 // Initialize Firebase
+console.log('🚀 Initializing Firebase app...');
 const app = initializeApp(firebaseConfig);
 
 console.log('🔥 Firebase app initialized');

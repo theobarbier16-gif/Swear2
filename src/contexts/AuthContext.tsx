@@ -14,6 +14,8 @@ import {
   updateUserPaymentStatus as updateFirestorePaymentStatus 
 } from '../utils/firestore';
 
+console.log('🚀 === DEBUT AUTH CONTEXT ===');
+
 // Actions pour le reducer
 type AuthAction =
   | { type: 'SET_LOADING'; payload: boolean }

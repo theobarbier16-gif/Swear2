@@ -11,6 +11,8 @@ import LoginPage from './pages/LoginPage';
 import PricingPage from './pages/PricingPage';
 import { useAuth } from './contexts/AuthContext';
 
+console.log('🚀 === DEBUT APP.TSX ===');
+
 export type ProcessingStep = 'upload' | 'processing' | 'results';
 export type AppView = 'main' | 'login' | 'pricing';
 
@@ -21,7 +23,9 @@ export interface ClothingOptions {
 }
 
 function App() {
+  console.log('🚀 === DEBUT FUNCTION APP ===');
   const { user } = useAuth();
+  console.log('🚀 User from useAuth:', user);
   const [currentView, setCurrentView] = useState<AppView>('main');
   const [currentStep, setCurrentStep] = useState<ProcessingStep>('upload');
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
