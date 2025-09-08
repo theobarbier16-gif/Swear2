@@ -120,15 +120,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Écouter les changements d'état d'authentification Firebase
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log('🔥 Firebase Auth State Changed:', firebaseUser?.email);
+      console.log('🔥 Firebase Auth State Changed:', firebaseUser?.email || 'No user');
+      console.log('🔥 Firebase User Object:', firebaseUser);
       if (firebaseUser) {
         try {
-          console.log('📊 Récupération des données Firestore pour:', firebaseUser.email);
+          console.log('📊 Tentative de récupération des données Firestore pour:', firebaseUser.email);
+          console.log('📊 Firebase User UID:', firebaseUser.uid);
           const user = await mapFirebaseUserToUser(firebaseUser);
-          console.log('✅ Données utilisateur récupérées:', user);
+          console.log('✅ Données utilisateur finales récupérées:', user);
           dispatch({ type: 'SET_USER', payload: user });
         } catch (error) {
-          console.error('Erreur lors du mapping utilisateur:', error);
+          console.error('❌ ERREUR CRITIQUE lors du mapping utilisateur:', error);
+          console.error('❌ Stack trace:', error.stack);
           dispatch({ type: 'SET_ERROR', payload: 'Erreur lors du chargement des données utilisateur' });
         }
       } else {
