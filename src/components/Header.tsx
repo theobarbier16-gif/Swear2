@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, User, Menu, X } from 'lucide-react';
+import { Sparkles, User, Menu, X, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import UserMenu from './auth/UserMenu';
 
@@ -9,7 +9,12 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ onShowLogin }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user, logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    setIsMobileMenuOpen(false);
+  };
 
   return (
     <header className="bg-white/10 backdrop-blur-lg border-b border-white/20 sticky top-0 z-50">
@@ -41,7 +46,19 @@ const Header: React.FC<HeaderProps> = ({ onShowLogin }) => {
                 Prix
               </a>
               {isAuthenticated ? (
-                <UserMenu />
+                <div className="flex items-center space-x-4">
+                  <span className="text-white/90 text-sm">
+                    Bonjour, {user?.firstName}
+                  </span>
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center hover:text-white transition-colors duration-200 bg-white/10 backdrop-blur-lg px-3 py-2 rounded-lg border border-white/20 hover:bg-white/20"
+                    title="Se déconnecter"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Déconnexion
+                  </button>
+                </div>
               ) : (
                 <button 
                   onClick={onShowLogin}
@@ -86,8 +103,17 @@ const Header: React.FC<HeaderProps> = ({ onShowLogin }) => {
                 Prix
               </a>
               {isAuthenticated ? (
-                <div onClick={() => setIsMobileMenuOpen(false)}>
-                  <UserMenu />
+                <div className="space-y-2">
+                  <div className="text-white/90 py-2 px-4">
+                    Bonjour, {user?.firstName} !
+                  </div>
+                  <button 
+                    onClick={handleLogout}
+                    className="flex items-center text-white/80 hover:text-white transition-colors duration-200 bg-white/10 backdrop-blur-lg px-4 py-2 rounded-lg border border-white/20 hover:bg-white/20 text-left w-full"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Se déconnecter
+                  </button>
                 </div>
               ) : (
                 <button 
