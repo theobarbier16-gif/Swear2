@@ -61,7 +61,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 min-h-screen">
       {/* Backdrop avec flou */}
       <div 
         className="absolute inset-0 bg-black/60 backdrop-blur-md"
@@ -69,9 +69,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
       />
       
       {/* Modal Container */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-auto transform transition-all">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto transform transition-all max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 pb-4">
+        <div className="flex items-center justify-between p-4 pb-3">
           <h2 className="text-xl font-bold text-gray-900">
             {mode === 'login' ? 'Connexion' : 'Inscription'}
           </h2>
@@ -84,26 +84,26 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
         </div>
 
         {/* Content */}
-        <div className="px-6 pb-6">
+        <div className="px-4 pb-4">
           {/* Error Message */}
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-red-600 text-sm">{error}</p>
             </div>
           )}
 
           {/* Demo Credentials */}
           {mode === 'login' && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-blue-800 text-sm font-medium mb-1">Compte démo :</p>
               <p className="text-blue-600 text-xs">demo@swear.com / 123456</p>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3">
             {/* First Name & Last Name (Register only) */}
             {mode === 'register' && (
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Prénom
@@ -190,7 +190,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-vinted-500 text-white py-2.5 px-4 rounded-lg font-medium hover:bg-vinted-600 focus:ring-2 focus:ring-vinted-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-sm"
+              className="w-full bg-vinted-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-vinted-600 focus:ring-2 focus:ring-vinted-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-sm mt-4"
             >
               {isLoading ? (
                 <>
@@ -204,7 +204,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
           </form>
 
           {/* Switch Mode */}
-          <div className="mt-4 text-center">
+          <div className="mt-3 text-center">
             <p className="text-gray-600 text-sm">
               {mode === 'login' ? "Pas de compte ?" : "Déjà un compte ?"}
               <button
@@ -218,7 +218,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
 
           {/* Benefits for Register */}
           {mode === 'register' && (
-            <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+            <div className="mt-3 p-3 bg-gray-50 rounded-lg">
               <h4 className="font-medium text-gray-900 mb-2 text-sm">Avantages :</h4>
               <ul className="text-xs text-gray-600 space-y-1">
                 <li>• 3 transformations gratuites</li>
