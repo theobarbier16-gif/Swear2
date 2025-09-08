@@ -39,21 +39,26 @@ export const getOrCreateUserDocument = async (
 ): Promise<User> => {
   const userDocRef = doc(db, USERS_COLLECTION, firebaseUserId);
   
-  console.log('🔍 Firestore - Début de getOrCreateUserDocument');
+  console.log('🔍 === DEBUT FIRESTORE DEBUG ===');
   console.log('🔍 Collection:', USERS_COLLECTION);
   console.log('🔍 Document ID:', firebaseUserId);
   console.log('🔍 User data:', userData);
-  console.log('🔍 Firestore db object:', db);
+  console.log('🔍 Firestore db object exists:', !!db);
+  console.log('🔍 Firestore db._delegate:', db._delegate);
+  console.log('🔍 Document reference:', userDocRef);
+  console.log('🔍 Document path:', userDocRef.path);
   
   try {
-    console.log('🔍 Tentative de récupération du document...');
+    console.log('🔍 === TENTATIVE GETDOC ===');
     // Essayer de récupérer le document existant
     const userDoc = await getDoc(userDocRef);
-    console.log('🔍 Document récupéré, existe?', userDoc.exists());
+    console.log('🔍 GetDoc terminé avec succès');
+    console.log('🔍 Document existe?', userDoc.exists());
+    console.log('🔍 Document metadata:', userDoc.metadata);
     
     if (userDoc.exists()) {
       // L'utilisateur existe déjà, retourner ses données
-      console.log('📄 Document existant trouvé');
+      console.log('📄 === DOCUMENT EXISTANT ===');
       const data = userDoc.data() as FirestoreUserData;
       console.log('📄 Données du document:', data);
       return {
@@ -73,7 +78,7 @@ export const getOrCreateUserDocument = async (
       };
     } else {
       // L'utilisateur n'existe pas dans Firestore, créer un nouveau document
-      console.log('➕ Aucun document trouvé, création en cours...');
+      console.log('➕ === CREATION NOUVEAU DOCUMENT ===');
       const newUserData: FirestoreUserData = {
         email: userData.email,
         firstName: userData.firstName,
@@ -89,8 +94,13 @@ export const getOrCreateUserDocument = async (
       };
       
       console.log('➕ Données à sauvegarder:', newUserData);
+      console.log('➕ Tentative setDoc...');
       await setDoc(userDocRef, newUserData);
-      console.log('✅ Document créé avec succès');
+      console.log('✅ SetDoc terminé avec succès');
+      
+      // Vérifier que le document a bien été créé
+      const verifyDoc = await getDoc(userDocRef);
+      console.log('✅ Vérification - Document existe maintenant?', verifyDoc.exists());
       
       return {
         id: firebaseUserId,
@@ -108,19 +118,29 @@ export const getOrCreateUserDocument = async (
       };
     }
   } catch (error) {
-    console.error('❌ ERREUR FIRESTORE CRITIQUE:', error);
-    console.error('❌ Type d\'erreur:', error.constructor.name);
-    console.error('❌ Message:', error.message);
-    console.error('❌ Stack:', error.stack);
+    console.error('❌ === ERREUR FIRESTORE CRITIQUE ===');
+    console.error('❌ Type d\'erreur:', error?.constructor?.name);
+    console.error('❌ Message:', error?.message);
+    console.error('❌ Code d\'erreur:', error?.code);
+    console.error('❌ Stack complet:', error?.stack);
+    console.error('❌ Objet erreur complet:', error);
     
     // Vérifier si c'est un problème de permissions
-    if (error.code === 'permission-denied') {
+    if (error?.code === 'permission-denied') {
       console.error('🚫 ERREUR DE PERMISSIONS FIRESTORE - Vérifiez les règles de sécurité');
+      console.error('🚫 Règles actuelles probablement trop restrictives');
+      console.error('🚫 Utilisateur authentifié?', !!auth.currentUser);
+      console.error('🚫 UID utilisateur:', auth.currentUser?.uid);
     }
     
     // Vérifier si c'est un problème de réseau
-    if (error.code === 'unavailable') {
+    if (error?.code === 'unavailable') {
       console.error('🌐 ERREUR RÉSEAU FIRESTORE - Problème de connexion');
+    }
+    
+    // Vérifier si c'est un problème de configuration
+    if (error?.code === 'failed-precondition') {
+      console.error('⚙️ ERREUR DE CONFIGURATION FIRESTORE');
     }
     
     // En cas d'erreur, retourner un utilisateur par défaut

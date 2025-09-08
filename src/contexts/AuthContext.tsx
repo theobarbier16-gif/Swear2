@@ -120,22 +120,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Écouter les changements d'état d'authentification Firebase
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log('🔥 Firebase Auth State Changed:', firebaseUser?.email || 'No user');
-      console.log('🔥 Firebase User Object:', firebaseUser);
+      console.log('🔥 === AUTH STATE CHANGE ===');
+      console.log('🔥 User email:', firebaseUser?.email || 'No user');
+      console.log('🔥 User UID:', firebaseUser?.uid || 'No UID');
+      console.log('🔥 User verified:', firebaseUser?.emailVerified);
+      console.log('🔥 Auth object:', auth);
+      console.log('🔥 Current user in auth:', auth.currentUser?.uid);
+      
       if (firebaseUser) {
         try {
-          console.log('📊 Tentative de récupération des données Firestore pour:', firebaseUser.email);
-          console.log('📊 Firebase User UID:', firebaseUser.uid);
+          console.log('📊 === DEBUT MAPPING UTILISATEUR ===');
+          console.log('📊 Email:', firebaseUser.email);
+          console.log('📊 UID:', firebaseUser.uid);
+          console.log('📊 Display Name:', firebaseUser.displayName);
           const user = await mapFirebaseUserToUser(firebaseUser);
-          console.log('✅ Données utilisateur finales récupérées:', user);
+          console.log('✅ === MAPPING TERMINE ===');
+          console.log('✅ User final:', user);
           dispatch({ type: 'SET_USER', payload: user });
         } catch (error) {
-          console.error('❌ ERREUR CRITIQUE lors du mapping utilisateur:', error);
-          console.error('❌ Stack trace:', error.stack);
+          console.error('❌ === ERREUR MAPPING UTILISATEUR ===');
+          console.error('❌ Erreur:', error);
+          console.error('❌ Stack:', error?.stack);
           dispatch({ type: 'SET_ERROR', payload: 'Erreur lors du chargement des données utilisateur' });
         }
       } else {
-        console.log('👋 Utilisateur déconnecté');
+        console.log('👋 === UTILISATEUR DECONNECTE ===');
         dispatch({ type: 'SET_USER', payload: null });
       }
     });

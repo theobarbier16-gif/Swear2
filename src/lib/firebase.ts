@@ -16,15 +16,20 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-console.log('🔥 Firebase app initialized:', app);
+console.log('🔥 Firebase app initialized');
+console.log('🔥 Project ID:', firebaseConfig.projectId);
+console.log('🔥 Auth Domain:', firebaseConfig.authDomain);
 
 // Initialize Firebase Authentication and get a reference to the service
 export const auth = getAuth(app);
-console.log('🔐 Firebase Auth initialized:', auth);
+console.log('🔐 Firebase Auth initialized');
+console.log('🔐 Auth current user:', auth.currentUser);
 
 // Initialize Cloud Firestore and get a reference to the service
 export const db = getFirestore(app);
-console.log('🗄️ Firestore initialized:', db);
+console.log('🗄️ Firestore initialized');
+console.log('🗄️ Firestore app:', db.app.name);
+console.log('🗄️ Firestore settings:', db._delegate._databaseId);
 
 // Initialize Analytics (optional)
 export let analytics: any = null;
