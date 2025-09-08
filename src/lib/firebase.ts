@@ -4,6 +4,7 @@ import { getFirestore } from 'firebase/firestore';
 import { getAnalytics } from 'firebase/analytics';
 
 console.log('🚀 === DEBUT FIREBASE.TS ===');
+console.log('🧪 FIREBASE - Test de log dans firebase.ts');
 console.log('🚀 Environment:', import.meta.env.MODE);
 console.log('🚀 Base URL:', import.meta.env.BASE_URL);
 

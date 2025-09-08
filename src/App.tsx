@@ -24,6 +24,7 @@ export interface ClothingOptions {
 
 function App() {
   console.log('🚀 === DEBUT FUNCTION APP ===');
+  console.log('🧪 APP - Test de log dans App component');
   const { user } = useAuth();
   console.log('🚀 User from useAuth:', user);
   const [currentView, setCurrentView] = useState<AppView>('main');
