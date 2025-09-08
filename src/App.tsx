@@ -8,9 +8,10 @@ import ProcessingStep from './components/ProcessingStep';
 import ResultsStep from './components/ResultsStep';
 import Footer from './components/Footer';
 import LoginPage from './pages/LoginPage';
+import PricingPage from './pages/PricingPage';
 
 export type ProcessingStep = 'upload' | 'processing' | 'results';
-export type AppView = 'main' | 'login';
+export type AppView = 'main' | 'login' | 'pricing';
 
 export interface ClothingOptions {
   gender: 'homme' | 'femme' | 'enfant';
@@ -33,6 +34,7 @@ function App() {
     size: 'm',
     mirror: 'normal'
   });
+  const [userEmail, setUserEmail] = useState<string>('');
 
   // Configurer le logger pour imageProcessor
   React.useEffect(() => {
@@ -104,6 +106,11 @@ function App() {
     setCurrentView('pricing');
   };
 
+  const handleShowPricingWithEmail = (email: string) => {
+    setUserEmail(email);
+    setCurrentView('pricing');
+  };
+
   const handleBackToMain = () => {
     setCurrentView('main');
   };
@@ -112,7 +119,7 @@ function App() {
   if (currentView === 'login') {
     return (
       <AuthProvider>
-        <LoginPage onBack={handleBackToMain} onShowPricing={handleShowPricing} />
+        <LoginPage onBack={handleBackToMain} onShowPricing={handleShowPricingWithEmail} />
       </AuthProvider>
     );
   }
