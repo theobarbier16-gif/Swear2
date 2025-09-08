@@ -16,13 +16,22 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
+console.log('🔥 Firebase app initialized:', app);
+
 // Initialize Firebase Authentication and get a reference to the service
 export const auth = getAuth(app);
+console.log('🔐 Firebase Auth initialized:', auth);
 
 // Initialize Cloud Firestore and get a reference to the service
 export const db = getFirestore(app);
+console.log('🗄️ Firestore initialized:', db);
 
 // Initialize Analytics (optional)
-export const analytics = getAnalytics(app);
+try {
+  export const analytics = getAnalytics(app);
+  console.log('📊 Analytics initialized:', analytics);
+} catch (error) {
+  console.warn('⚠️ Analytics initialization failed (normal in development):', error);
+}
 
 export default app;
