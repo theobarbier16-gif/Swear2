@@ -64,12 +64,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop avec flou */}
       <div 
-        className="fixed inset-0 bg-black/60 backdrop-blur-md -z-10"
+        className="absolute inset-0 bg-black/60 backdrop-blur-md"
         onClick={onClose}
       />
       
       {/* Modal Container */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto transform transition-all max-h-[90vh] overflow-y-auto z-10">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-auto transform transition-all z-50">
         {/* Header */}
         <div className="flex items-center justify-between p-4 pb-3">
           <h2 className="text-xl font-bold text-gray-900">
@@ -114,7 +114,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
                     value={formData.firstName}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-vinted-500 focus:border-transparent text-sm bg-white text-gray-900 relative z-20"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-vinted-500 focus:border-transparent text-sm bg-white text-gray-900"
                     placeholder="Prénom"
                   />
                 </div>
@@ -128,7 +128,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
                     value={formData.lastName}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-vinted-500 focus:border-transparent text-sm bg-white text-gray-900 relative z-20"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-vinted-500 focus:border-transparent text-sm bg-white text-gray-900"
                     placeholder="Nom"
                   />
                 </div>
@@ -148,7 +148,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
                   value={formData.email}
                   onChange={handleInputChange}
                   required
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-vinted-500 focus:border-transparent text-sm bg-white text-gray-900 relative z-20"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-vinted-500 focus:border-transparent text-sm bg-white text-gray-900"
                   placeholder="votre@email.com"
                 />
               </div>
@@ -168,13 +168,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
                   onChange={handleInputChange}
                   required
                   minLength={6}
-                  className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-vinted-500 focus:border-transparent text-sm bg-white text-gray-900 relative z-20"
+                  className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-vinted-500 focus:border-transparent text-sm bg-white text-gray-900"
                   placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 z-30"
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
