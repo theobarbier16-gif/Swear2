@@ -96,11 +96,7 @@ const Header: React.FC<HeaderProps> = ({ onShowLogin, onShowPricing }) => {
               >
                 Contact
               </a>
-              <a 
-                onClick={() => {
-                  onShowPricing?.();
-                  setIsMobileMenuOpen(false);
-                }}
+              <button 
                 onClick={() => {
                   onShowPricing?.();
                   setIsMobileMenuOpen(false);
