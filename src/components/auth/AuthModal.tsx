@@ -61,8 +61,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 min-h-screen">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md relative">
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md relative my-8 mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
           <h2 className="text-2xl font-bold text-gray-900">
@@ -77,7 +77,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {/* Error Message */}
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
@@ -87,7 +87,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
 
           {/* Demo Credentials */}
           {mode === 'login' && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-center sm:text-left">
               <p className="text-blue-800 text-sm font-medium mb-1">Compte de démonstration :</p>
               <p className="text-blue-600 text-xs">Email: demo@swear.com</p>
               <p className="text-blue-600 text-xs">Mot de passe: 123456</p>
@@ -97,7 +97,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* First Name & Last Name (Register only) */}
             {mode === 'register' && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Prénom
@@ -110,7 +110,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
                       value={formData.firstName}
                       onChange={handleInputChange}
                       required
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-vinted-500 focus:border-transparent"
+                      className="w-full pl-10 pr-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-vinted-500 focus:border-transparent text-sm sm:text-base"
                       placeholder="Votre prénom"
                     />
                   </div>
@@ -127,7 +127,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
                       value={formData.lastName}
                       onChange={handleInputChange}
                       required
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-vinted-500 focus:border-transparent"
+                      className="w-full pl-10 pr-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-vinted-500 focus:border-transparent text-sm sm:text-base"
                       placeholder="Votre nom"
                     />
                   </div>
@@ -148,7 +148,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
                   value={formData.email}
                   onChange={handleInputChange}
                   required
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-vinted-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-vinted-500 focus:border-transparent text-sm sm:text-base"
                   placeholder="votre@email.com"
                 />
               </div>
@@ -168,7 +168,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
                   onChange={handleInputChange}
                   required
                   minLength={6}
-                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-vinted-500 focus:border-transparent"
+                  className="w-full pl-10 pr-12 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-vinted-500 focus:border-transparent text-sm sm:text-base"
                   placeholder="••••••••"
                 />
                 <button
@@ -190,7 +190,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full bg-vinted-500 text-white py-3 px-4 rounded-lg font-medium hover:bg-vinted-600 focus:ring-2 focus:ring-vinted-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+              className="w-full bg-vinted-500 text-white py-2 sm:py-3 px-4 rounded-lg font-medium hover:bg-vinted-600 focus:ring-2 focus:ring-vinted-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-sm sm:text-base"
             >
               {isLoading ? (
                 <>
@@ -205,11 +205,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
 
           {/* Switch Mode */}
           <div className="mt-6 text-center">
-            <p className="text-gray-600">
+            <p className="text-gray-600 text-sm sm:text-base">
               {mode === 'login' ? "Pas encore de compte ?" : "Déjà un compte ?"}
               <button
                 onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
-                className="ml-2 text-vinted-500 hover:text-vinted-600 font-medium"
+                className="ml-2 text-vinted-500 hover:text-vinted-600 font-medium text-sm sm:text-base"
               >
                 {mode === 'login' ? 'Créer un compte' : 'Se connecter'}
               </button>
@@ -218,7 +218,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
 
           {/* Benefits for Register */}
           {mode === 'register' && (
-            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+            <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-gray-50 rounded-lg">
               <h4 className="font-medium text-gray-900 mb-2">Avantages du compte :</h4>
               <ul className="text-sm text-gray-600 space-y-1">
                 <li>• 3 transformations gratuites</li>
