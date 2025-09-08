@@ -196,6 +196,7 @@ function App() {
               isProcessing={isProcessing}
               processingError={processingError}
               onShowLogin={handleShowLogin}
+              onShowPricing={handleShowPricing}
             />
           )}
           

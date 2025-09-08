@@ -8,9 +8,10 @@ interface UploadStepProps {
   isProcessing?: boolean;
   processingError?: string | null;
   onShowLogin?: () => void;
+  onShowPricing?: () => void;
 }
 
-const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, processingError, onShowLogin }) => {
+const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, processingError, onShowLogin, onShowPricing }) => {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const { isAuthenticated, user } = useAuth();

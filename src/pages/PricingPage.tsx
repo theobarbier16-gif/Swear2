@@ -85,6 +85,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       // Simuler le succès du paiement après un délai (en production, ceci serait géré par un webhook Stripe)
       setTimeout(() => {
         updateUserPaymentStatus(true);
+        alert('🎉 Paiement confirmé ! Vous avez maintenant accès au service Premium.');
         onBack(); // Rediriger vers la page d'accueil
       }, 3000); // 3 secondes pour simuler le processus de paiement
     } else {
