@@ -69,10 +69,25 @@ function App() {
   const handleImageUpload = async (imageUrl: string, name: string, file: File, options: ClothingOptions) => {
     addDebugLog('🚀 Début du processus d\'upload');
     
-    // Vérifier que l'utilisateur a des crédits
-    if (!user || !user.hasPaid || (user.subscription?.creditsRemaining || 0) <= 0) {
-      addDebugLog('❌ Utilisateur sans crédits suffisants');
-      setProcessingError('Vous n\'avez pas assez de crédits pour effectuer cette transformation.');
+    // Vérifications de sécurité strictes
+    if (!user) {
+      addDebugLog('❌ Utilisateur non connecté');
+      setProcessingError('Vous devez être connecté pour utiliser ce service.');
+      setCurrentView('login');
+      return;
+    }
+    
+    if (!user.hasPaid) {
+      addDebugLog('❌ Utilisateur n\'a pas payé');
+      setProcessingError('Vous devez souscrire à un abonnement pour utiliser ce service.');
+      setCurrentView('pricing');
+      return;
+    }
+    
+    if ((user.subscription?.creditsRemaining || 0) <= 0) {
+      addDebugLog('❌ Utilisateur sans crédits');
+      setProcessingError('Vous n\'avez plus de crédits disponibles. Veuillez recharger votre compte.');
+      setCurrentView('pricing');
       return;
     }
     
