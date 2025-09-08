@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
 import { Sparkles, User, Menu, X } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import AuthModal from './auth/AuthModal';
+import UserMenu from './auth/UserMenu';
 
 const Header: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const { isAuthenticated } = useAuth();
 
   return (
     <header className="bg-white/10 backdrop-blur-lg border-b border-white/20 sticky top-0 z-50">
@@ -33,10 +38,17 @@ const Header: React.FC = () => {
               >
                 Prix
               </a>
-              <button className="flex items-center hover:text-white transition-colors duration-200 bg-white/10 backdrop-blur-lg px-3 py-2 rounded-lg border border-white/20 hover:bg-white/20">
-                <User className="w-4 h-4 mr-2" />
-                Connexion
-              </button>
+              {isAuthenticated ? (
+                <UserMenu />
+              ) : (
+                <button 
+                  onClick={() => setShowAuthModal(true)}
+                  className="flex items-center hover:text-white transition-colors duration-200 bg-white/10 backdrop-blur-lg px-3 py-2 rounded-lg border border-white/20 hover:bg-white/20"
+                >
+                  <User className="w-4 h-4 mr-2" />
+                  Connexion
+                </button>
+              )}
             </nav>
             
             {/* Mobile Menu Button */}
@@ -71,17 +83,31 @@ const Header: React.FC = () => {
               >
                 Prix
               </a>
-              <button 
-                className="flex items-center text-white/80 hover:text-white transition-colors duration-200 bg-white/10 backdrop-blur-lg px-4 py-2 rounded-lg border border-white/20 hover:bg-white/20 text-left"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                <User className="w-4 h-4 mr-2" />
-                Connexion
-              </button>
+              {isAuthenticated ? (
+                <div onClick={() => setIsMobileMenuOpen(false)}>
+                  <UserMenu />
+                </div>
+              ) : (
+                <button 
+                  className="flex items-center text-white/80 hover:text-white transition-colors duration-200 bg-white/10 backdrop-blur-lg px-4 py-2 rounded-lg border border-white/20 hover:bg-white/20 text-left"
+                  onClick={() => {
+                    setShowAuthModal(true);
+                    setIsMobileMenuOpen(false);
+                  }}
+                >
+                  <User className="w-4 h-4 mr-2" />
+                  Connexion
+                </button>
+              )}
             </nav>
           </div>
         )}
       </div>
+      
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+      />
     </header>
   );
 };

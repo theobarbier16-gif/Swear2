@@ -1,6 +1,8 @@
 import React, { useCallback, useState } from 'react';
 import { Upload, ImageIcon, Sparkles, AlertCircle, User, Ruler } from 'lucide-react';
 import { ClothingOptions } from '../App';
+import { useAuth } from '../contexts/AuthContext';
+import AuthModal from './auth/AuthModal';
 
 interface UploadStepProps {
   onImageUpload: (imageUrl: string, fileName: string, file: File, options: ClothingOptions) => void;
@@ -10,7 +12,9 @@ interface UploadStepProps {
 
 const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, processingError }) => {
   const [isDragging, setIsDragging] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const { isAuthenticated, user } = useAuth();
   const [clothingOptions, setClothingOptions] = useState<ClothingOptions>({
     gender: 'femme',
     size: 'm'
@@ -40,6 +44,17 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.type.startsWith('image/')) {
+      // Vérifier si l'utilisateur est connecté et a des crédits
+      if (!isAuthenticated) {
+        setShowAuthModal(true);
+        return;
+      }
+      
+      if (user?.subscription?.creditsRemaining === 0) {
+        alert('Vous n\'avez plus de crédits disponibles. Veuillez upgrader votre abonnement.');
+        return;
+      }
+      
       // Créer une version redimensionnée pour l'affichage
       resizeImageForDisplay(file).then(({ displayUrl, processedFile }) => {
         onImageUpload(displayUrl, file.name, processedFile, clothingOptions);
@@ -170,6 +185,25 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
       {/* Upload Area */}
       {/* Clothing Options */}
       <div className="max-w-2xl mx-auto mb-8">
+        {/* Credits Display */}
+        {isAuthenticated && user && (
+          <div className="mb-6 p-4 bg-white/10 backdrop-blur-lg rounded-xl border border-white/20">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-white font-medium">Bienvenue, {user.firstName} !</h4>
+                <p className="text-white/70 text-sm">
+                  Plan {user.subscription?.plan || 'Free'} • {user.subscription?.creditsRemaining || 0} crédits restants
+                </p>
+              </div>
+              {(user.subscription?.creditsRemaining || 0) <= 1 && (
+                <button className="bg-white text-vinted-500 px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/90 transition-colors">
+                  Upgrader
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+        
         <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 shadow-xl">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
             <User className="w-5 h-5 mr-2" />
@@ -348,7 +382,7 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
                 }
               `}
             >
-              {isProcessing ? 'Traitement...' : 'Choisir un Fichier'}
+              {isProcessing ? 'Traitement...' : isAuthenticated ? 'Choisir un Fichier' : 'Se connecter pour commencer'}
             </button>
             
             <p className="text-xs text-white/60 mt-4">
@@ -357,6 +391,11 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
           </div>
         </div>
       </div>
+      
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+      />
 
       {/* Features Grid */}
       <div className="grid md:grid-cols-3 gap-6">
