@@ -13,7 +13,6 @@ console.log('🚀 Root element exists:', !!document.getElementById('root'));
 
 // Test basique pour voir si les logs fonctionnent
 console.log('🧪 TEST CONSOLE - Si vous voyez ceci, les logs fonctionnent !');
-console.error('🧪 TEST ERROR - Test d\'erreur pour vérifier la console');
 console.warn('🧪 TEST WARNING - Test d\'avertissement');
 
 const rootElement = document.getElementById('root');
