@@ -130,7 +130,10 @@ const ProcessingStep: React.FC<ProcessingStepProps> = ({ uploadedImage, fileName
       {/* Processing Time Estimate */}
       <div className="text-center">
         <p className="text-white/60 text-sm">
-          Temps estimé : 30-45 secondes • Traitement haute qualité en cours
+          Temps estimé : 15-30 secondes • Traitement haute qualité en cours
+        </p>
+        <p className="text-white/50 text-xs mt-1">
+          💡 Si le service est indisponible, une démonstration sera générée automatiquement
         </p>
       </div>
     </div>

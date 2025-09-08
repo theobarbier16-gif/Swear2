@@ -176,6 +176,9 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
               <div>
                 <h4 className="text-red-400 font-medium">Erreur de traitement</h4>
                 <p className="text-red-300 text-sm">{processingError}</p>
+                <p className="text-red-200 text-xs mt-2">
+                  💡 En cas de problème de connexion, l'application passe automatiquement en mode démonstration
+                </p>
               </div>
             </div>
           </div>
