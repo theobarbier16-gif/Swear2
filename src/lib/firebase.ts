@@ -27,8 +27,10 @@ export const db = getFirestore(app);
 console.log('🗄️ Firestore initialized:', db);
 
 // Initialize Analytics (optional)
+export let analytics: any = null;
+// Initialize Analytics (optional)
 try {
-  export const analytics = getAnalytics(app);
+  analytics = getAnalytics(app);
   console.log('📊 Analytics initialized:', analytics);
 } catch (error) {
   console.warn('⚠️ Analytics initialization failed (normal in development):', error);
