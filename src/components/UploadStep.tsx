@@ -2,17 +2,16 @@ import React, { useCallback, useState } from 'react';
 import { Upload, ImageIcon, Sparkles, AlertCircle, User, Ruler } from 'lucide-react';
 import { ClothingOptions } from '../App';
 import { useAuth } from '../contexts/AuthContext';
-import AuthModal from './auth/AuthModal';
 
 interface UploadStepProps {
   onImageUpload: (imageUrl: string, fileName: string, file: File, options: ClothingOptions) => void;
   isProcessing?: boolean;
   processingError?: string | null;
+  onShowLogin?: () => void;
 }
 
-const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, processingError }) => {
+const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, processingError, onShowLogin }) => {
   const [isDragging, setIsDragging] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const { isAuthenticated, user } = useAuth();
   const [clothingOptions, setClothingOptions] = useState<ClothingOptions>({
@@ -46,7 +45,7 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
     if (file && file.type.startsWith('image/')) {
       // Vérifier si l'utilisateur est connecté et a des crédits
       if (!isAuthenticated) {
-        setShowAuthModal(true);
+        onShowLogin?.();
         return;
       }
       
@@ -392,10 +391,6 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
         </div>
       </div>
       
-      <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={() => setShowAuthModal(false)} 
-      />
 
       {/* Features Grid */}
       <div className="grid md:grid-cols-3 gap-6">

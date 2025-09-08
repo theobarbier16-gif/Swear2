@@ -7,8 +7,10 @@ import UploadStep from './components/UploadStep';
 import ProcessingStep from './components/ProcessingStep';
 import ResultsStep from './components/ResultsStep';
 import Footer from './components/Footer';
+import LoginPage from './pages/LoginPage';
 
 export type ProcessingStep = 'upload' | 'processing' | 'results';
+export type AppView = 'main' | 'login';
 
 export interface ClothingOptions {
   gender: 'homme' | 'femme' | 'enfant';
@@ -17,6 +19,7 @@ export interface ClothingOptions {
 }
 
 function App() {
+  const [currentView, setCurrentView] = useState<AppView>('main');
   const [currentStep, setCurrentStep] = useState<ProcessingStep>('upload');
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
@@ -93,6 +96,23 @@ function App() {
     setClothingOptions({ gender: 'femme', size: 'm', mirror: 'normal' });
   };
 
+  const handleShowLogin = () => {
+    setCurrentView('login');
+  };
+
+  const handleBackToMain = () => {
+    setCurrentView('main');
+  };
+
+  // Si on est sur la page de connexion, l'afficher
+  if (currentView === 'login') {
+    return (
+      <AuthProvider>
+        <LoginPage onBack={handleBackToMain} />
+      </AuthProvider>
+    );
+  }
+
   const stepNumber = currentStep === 'upload' ? 1 : currentStep === 'processing' ? 2 : 3;
 
   return (
@@ -106,7 +126,7 @@ function App() {
           <div className="absolute inset-0 bg-gradient-to-t from-vinted-600/20 to-transparent"></div>
         </div>
         
-        <Header />
+        <Header onShowLogin={handleShowLogin} />
         
         {/* Debug Panel - Bouton flottant */}
         <div className="fixed bottom-4 right-4 z-50">
@@ -155,6 +175,7 @@ function App() {
               onImageUpload={handleImageUpload} 
               isProcessing={isProcessing}
               processingError={processingError}
+              onShowLogin={handleShowLogin}
             />
           )}
           

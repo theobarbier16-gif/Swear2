@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Sparkles, User, Menu, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import AuthModal from './auth/AuthModal';
 import UserMenu from './auth/UserMenu';
 
-const Header: React.FC = () => {
+interface HeaderProps {
+  onShowLogin?: () => void;
+}
+
+const Header: React.FC<HeaderProps> = ({ onShowLogin }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
   const { isAuthenticated } = useAuth();
 
   return (
@@ -42,7 +44,7 @@ const Header: React.FC = () => {
                 <UserMenu />
               ) : (
                 <button 
-                  onClick={() => setShowAuthModal(true)}
+                  onClick={onShowLogin}
                   className="flex items-center hover:text-white transition-colors duration-200 bg-white/10 backdrop-blur-lg px-3 py-2 rounded-lg border border-white/20 hover:bg-white/20"
                 >
                   <User className="w-4 h-4 mr-2" />
@@ -91,7 +93,7 @@ const Header: React.FC = () => {
                 <button 
                   className="flex items-center text-white/80 hover:text-white transition-colors duration-200 bg-white/10 backdrop-blur-lg px-4 py-2 rounded-lg border border-white/20 hover:bg-white/20 text-left"
                   onClick={() => {
-                    setShowAuthModal(true);
+                    onShowLogin?.();
                     setIsMobileMenuOpen(false);
                   }}
                 >
@@ -103,11 +105,6 @@ const Header: React.FC = () => {
           </div>
         )}
       </div>
-      
-      <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={() => setShowAuthModal(false)} 
-      />
     </header>
   );
 };
