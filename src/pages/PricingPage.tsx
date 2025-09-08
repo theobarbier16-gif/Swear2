@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowLeft, Check, Sparkles, Zap, Crown } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface PricingPageProps {
   onBack: () => void;
@@ -8,6 +9,8 @@ interface PricingPageProps {
 }
 
 const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUserEmail }) => {
+  const { updateUserPaymentStatus } = useAuth();
+
   const plans = [
     {
       name: 'Free Plan',
