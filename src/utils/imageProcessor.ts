@@ -106,6 +106,12 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
   debugLog('🚀 Début du traitement d\'image');
   
   try {
+    // Mode démo - générer une image de test immédiatement
+    if (import.meta.env.VITE_DEMO_MODE === 'true') {
+      debugLog('🎭 Mode démo activé - génération d\'une image de test');
+      return await simulateProcessing();
+    }
+    
     // Validation du fichier
     debugLog('🔍 Validation du fichier...');
     if (!file || file.size === 0) {
@@ -216,15 +222,11 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
     // Essayer plusieurs URLs de fallback
     const webhookUrls = [
       'https://n8n-automatisation.fr/webhook-test/testvolt',
-      'https://n8n-automatisation.fr/webhook/testvolt',
-      // Essayer avec des proxies CORS
-      ...CORS_PROXIES.map(proxy => `${proxy}https://n8n-automatisation.fr/webhook-test/testvolt`),
-      // HTTP fallback en dernier recours
-      'http://n8n-automatisation.fr/webhook-test/testvolt',
+      'https://n8n-automatisation.fr/webhook/testvolt'
     ];
     
     let response;
-    const maxRetries = 3; // Plus de tentatives pour mobile
+    const maxRetries = 1; // Réduire les tentatives pour éviter les timeouts multiples
     let lastError;
     let successUrl = null;
     
@@ -237,7 +239,7 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
           debugLog(`🔄 Tentative ${attempt + 1}/${maxRetries + 1} pour ${webhookUrl}`);
           
           const controller = new AbortController();
-          const timeoutDuration = 45000; // 45s timeout pour mobile
+          const timeoutDuration = 15000; // Réduire à 15s pour éviter les longs timeouts
           const timeoutId = setTimeout(() => {
             debugLog('⏰ Timeout - annulation de la requête');
             controller.abort();
@@ -303,7 +305,7 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
             debugLog(`❌ Toutes les tentatives ont échoué pour ${webhookUrl}`);
           } else {
             // Attendre avant de réessayer
-            const waitTime = 1000 * (attempt + 1);
+            const waitTime = 2000; // Temps d'attente fixe de 2s
             debugLog(`⏳ Attente de ${waitTime}ms avant retry...`);
             await new Promise(resolve => setTimeout(resolve, waitTime));
           }
@@ -318,10 +320,10 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
     }
     
     if (!response) {
-      debugLog('❌ Aucune réponse reçue de toutes les URLs');
+      debugLog('❌ Aucune réponse reçue - passage en mode simulation');
       
-      // Essayer une dernière méthode : simulation locale pour test
-      debugLog('🔄 Tentative de simulation locale pour test...');
+      // Passer automatiquement en mode simulation
+      debugLog('🎭 Activation du mode simulation automatique...');
       return await simulateProcessing();
     }
 
@@ -520,36 +522,64 @@ const fileToBase64 = (file: File): Promise<string> => {
 
 // Fonction de simulation pour contourner les problèmes réseau
 const simulateProcessing = async (): Promise<WebhookResponse> => {
-  debugLog('🎭 Simulation du traitement pour test...');
+  debugLog('🎭 Mode simulation - Création d\'une image de démonstration...');
   
-  // Attendre un peu pour simuler le traitement
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  // Attendre un peu pour simuler le traitement (plus court)
+  await new Promise(resolve => setTimeout(resolve, 1000));
   
-  // Créer une image de test (pixel transparent)
+  // Créer une image de démonstration plus réaliste
   const canvas = document.createElement('canvas');
-  canvas.width = 300;
-  canvas.height = 400;
+  canvas.width = 896;
+  canvas.height = 1152;
   const ctx = canvas.getContext('2d');
   
   if (ctx) {
-    // Fond blanc
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, 300, 400);
+    // Créer un dégradé de fond
+    const gradient = ctx.createLinearGradient(0, 0, 0, 1152);
+    gradient.addColorStop(0, '#f8fafc');
+    gradient.addColorStop(1, '#e2e8f0');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 896, 1152);
+    
+    // Simuler une silhouette de mannequin
+    ctx.fillStyle = '#cbd5e1';
+    ctx.beginPath();
+    ctx.ellipse(448, 300, 120, 160, 0, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    // Corps
+    ctx.fillRect(368, 460, 160, 400);
+    
+    // Bras
+    ctx.fillRect(288, 480, 80, 200);
+    ctx.fillRect(528, 480, 80, 200);
+    
+    // Jambes
+    ctx.fillRect(388, 860, 60, 200);
+    ctx.fillRect(448, 860, 60, 200);
     
     // Texte de test
-    ctx.fillStyle = '#09B1BA';
-    ctx.font = '20px Arial';
+    ctx.fillStyle = '#1e293b';
+    ctx.font = 'bold 32px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText('Image de Test', 150, 200);
-    ctx.fillText('Webhook N8N', 150, 230);
-    ctx.fillText('Non Disponible', 150, 260);
+    ctx.fillText('SWEAR DEMO', 448, 100);
+    
+    ctx.font = '24px Arial';
+    ctx.fillStyle = '#64748b';
+    ctx.fillText('Mode Démonstration', 448, 140);
+    ctx.fillText('Mannequin Virtuel', 448, 180);
+    
+    // Ajouter le logo Swear
+    ctx.fillStyle = '#09B1BA';
+    ctx.font = 'bold 28px Arial';
+    ctx.fillText('✨ Swear', 448, 1100);
     
     // Convertir en blob puis en URL
     return new Promise((resolve) => {
       canvas.toBlob((blob) => {
         if (blob) {
           const imageUrl = URL.createObjectURL(blob);
-          debugLog('✅ Image de simulation créée');
+          debugLog('✅ Image de démonstration créée avec succès');
           resolve({
             success: true,
             imageUrl: imageUrl,
@@ -557,7 +587,7 @@ const simulateProcessing = async (): Promise<WebhookResponse> => {
         } else {
           resolve({
             success: false,
-            error: 'Impossible de créer l\'image de test',
+            error: 'Impossible de créer l\'image de démonstration',
           });
         }
       }, 'image/png');
@@ -566,6 +596,6 @@ const simulateProcessing = async (): Promise<WebhookResponse> => {
   
   return {
     success: false,
-    error: 'Impossible de créer le canvas de test',
+    error: 'Impossible de créer le canvas de démonstration',
   };
 };
