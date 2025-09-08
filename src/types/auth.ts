@@ -5,10 +5,12 @@ export interface User {
   lastName: string;
   createdAt: string;
   hasPaid: boolean;
+  firestoreId?: string; // ID du document Firestore
   subscription?: {
     plan: 'free' | 'premium' | 'pro';
     creditsRemaining: number;
     expiresAt?: string;
+    lastUpdated?: string;
   };
 }
 

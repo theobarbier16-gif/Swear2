@@ -9,6 +9,10 @@ import {
 } from 'firebase/auth';
 import { auth } from '../lib/firebase';
 import { AuthState, AuthContextType, LoginCredentials, RegisterCredentials, User } from '../types/auth';
+import { 
+  getOrCreateUserDocument, 
+  updateUserPaymentStatus as updateFirestorePaymentStatus 
+} from '../utils/firestore';
 
 // Actions pour le reducer
 type AuthAction =
@@ -63,7 +67,7 @@ export const useAuth = () => {
 };
 
 // Fonction pour convertir un utilisateur Firebase en utilisateur de l'app
-const mapFirebaseUserToUser = (firebaseUser: FirebaseUser): User => {
+const mapFirebaseUserToUser = async (firebaseUser: FirebaseUser): Promise<User> => {
   const email = firebaseUser.email || '';
   const displayName = firebaseUser.displayName || '';
   
@@ -80,18 +84,30 @@ const mapFirebaseUserToUser = (firebaseUser: FirebaseUser): User => {
     firstName = email.split('@')[0] || 'Utilisateur';
   }
 
-  return {
-    id: firebaseUser.uid,
-    email: email,
-    firstName: firstName,
-    lastName: lastName,
-    createdAt: firebaseUser.metadata.creationTime || new Date().toISOString(),
-    hasPaid: false, // Par défaut, l'utilisateur n'a pas payé
-    subscription: {
-      plan: 'free',
-      creditsRemaining: 0, // Pas de crédits gratuits, paiement requis
-    },
-  };
+  // Récupérer ou créer le document utilisateur dans Firestore
+  try {
+    const user = await getOrCreateUserDocument(firebaseUser.uid, {
+      email,
+      firstName,
+      lastName,
+    });
+    return user;
+  } catch (error) {
+    console.error('Erreur lors de la récupération des données utilisateur:', error);
+    // Fallback en cas d'erreur Firestore
+    return {
+      id: firebaseUser.uid,
+      email: email,
+      firstName: firstName,
+      lastName: lastName,
+      createdAt: firebaseUser.metadata.creationTime || new Date().toISOString(),
+      hasPaid: false,
+      subscription: {
+        plan: 'free',
+        creditsRemaining: 0,
+      },
+    };
+  }
 };
 
 // Provider
@@ -100,10 +116,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Écouter les changements d'état d'authentification Firebase
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const user = mapFirebaseUserToUser(firebaseUser);
-        dispatch({ type: 'SET_USER', payload: user });
+        try {
+          const user = await mapFirebaseUserToUser(firebaseUser);
+          dispatch({ type: 'SET_USER', payload: user });
+        } catch (error) {
+          console.error('Erreur lors du mapping utilisateur:', error);
+          dispatch({ type: 'SET_ERROR', payload: 'Erreur lors du chargement des données utilisateur' });
+        }
       } else {
         dispatch({ type: 'SET_USER', payload: null });
       }
@@ -218,7 +239,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const updateUserPaymentStatus = (hasPaid: boolean) => {
-    if (state.user) {
+    if (state.user && state.user.firestoreId) {
+      // Mettre à jour Firestore
+      updateFirestorePaymentStatus(state.user.firestoreId, hasPaid, 25)
+        .then(() => {
+          console.log('Statut de paiement mis à jour avec succès');
+        })
+        .catch((error) => {
+          console.error('Erreur lors de la mise à jour du statut de paiement:', error);
+        });
+      
+      // Mettre à jour l'état local immédiatement pour une meilleure UX
       const updatedUser = {
         ...state.user,
         hasPaid: hasPaid,
@@ -226,11 +257,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ...state.user.subscription,
           plan: hasPaid ? 'premium' : 'free',
           creditsRemaining: hasPaid ? 25 : 0,
+          lastUpdated: new Date().toISOString(),
         }
       };
       dispatch({ type: 'SET_USER', payload: updatedUser });
     }
   };
+  
   const value: AuthContextType = {
     ...state,
     login,

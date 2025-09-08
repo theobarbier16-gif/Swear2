@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Upload, Sparkles, Download, ArrowLeft, Check } from 'lucide-react';
 import { processImageWithN8N, setDebugLogger } from './utils/imageProcessor';
+import { decrementUserCredits } from './utils/firestore';
 import Header from './components/Header';
 import UploadStep from './components/UploadStep';
 import ProcessingStep from './components/ProcessingStep';
@@ -54,6 +55,14 @@ function App() {
 
   const handleImageUpload = async (imageUrl: string, name: string, file: File, options: ClothingOptions) => {
     addDebugLog('🚀 Début du processus d\'upload');
+    
+    // Vérifier que l'utilisateur a des crédits
+    if (!user || !user.hasPaid || (user.subscription?.creditsRemaining || 0) <= 0) {
+      addDebugLog('❌ Utilisateur sans crédits suffisants');
+      setProcessingError('Vous n\'avez pas assez de crédits pour effectuer cette transformation.');
+      return;
+    }
+    
     setUploadedImage(imageUrl);
     setFileName(name);
     setClothingOptions(options);
@@ -70,6 +79,17 @@ function App() {
       if (result.success && result.imageUrl) {
         addDebugLog('✅ Traitement réussi !');
         setGeneratedImage(result.imageUrl);
+        
+        // Décrémenter les crédits de l'utilisateur
+        if (user && user.firestoreId) {
+          try {
+            await decrementUserCredits(user.firestoreId, 1);
+            addDebugLog('💳 Crédit déduit avec succès');
+          } catch (error) {
+            addDebugLog(`⚠️ Erreur lors de la déduction du crédit: ${error}`);
+          }
+        }
+        
         setCurrentStep('results');
       } else {
         addDebugLog(`❌ Échec du traitement: ${result.error}`);
