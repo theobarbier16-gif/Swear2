@@ -40,11 +40,13 @@ export const getOrCreateUserDocument = async (
   const userDocRef = doc(db, USERS_COLLECTION, firebaseUserId);
   
   try {
+    console.log('🔍 Recherche du document utilisateur pour:', userData.email);
     // Essayer de récupérer le document existant
     const userDoc = await getDoc(userDocRef);
     
     if (userDoc.exists()) {
       // L'utilisateur existe déjà, retourner ses données
+      console.log('📄 Document utilisateur trouvé');
       const data = userDoc.data() as FirestoreUserData;
       return {
         id: firebaseUserId,
@@ -63,6 +65,7 @@ export const getOrCreateUserDocument = async (
       };
     } else {
       // L'utilisateur n'existe pas, créer un nouveau document
+      console.log('➕ Création d\'un nouveau document utilisateur');
       const newUserData: FirestoreUserData = {
         email: userData.email,
         firstName: userData.firstName,
@@ -78,6 +81,7 @@ export const getOrCreateUserDocument = async (
       };
       
       await setDoc(userDocRef, newUserData);
+      console.log('✅ Document utilisateur créé avec succès');
       
       return {
         id: firebaseUserId,
@@ -123,6 +127,7 @@ export const updateUserPaymentStatus = async (
   const userDocRef = doc(db, USERS_COLLECTION, firebaseUserId);
   
   try {
+    console.log('💳 Mise à jour du statut de paiement:', { firebaseUserId, hasPaid, creditsToAdd });
     const updateData = {
       hasPaid: hasPaid,
       subscription: {
@@ -134,6 +139,7 @@ export const updateUserPaymentStatus = async (
     };
     
     await updateDoc(userDocRef, updateData);
+    console.log('✅ Statut de paiement mis à jour dans Firestore');
     console.log('Statut de paiement mis à jour dans Firestore');
   } catch (error) {
     console.error('Erreur lors de la mise à jour du statut de paiement:', error);
