@@ -40,13 +40,13 @@ export const getOrCreateUserDocument = async (
   const userDocRef = doc(db, USERS_COLLECTION, firebaseUserId);
   
   try {
-    console.log('🔍 Recherche du document utilisateur pour:', userData.email);
+    console.log('🔍 Recherche du document Firestore pour:', userData.email, 'ID:', firebaseUserId);
     // Essayer de récupérer le document existant
     const userDoc = await getDoc(userDocRef);
     
     if (userDoc.exists()) {
       // L'utilisateur existe déjà, retourner ses données
-      console.log('📄 Document utilisateur trouvé');
+      console.log('📄 Document Firestore existant trouvé pour:', userData.email);
       const data = userDoc.data() as FirestoreUserData;
       return {
         id: firebaseUserId,
@@ -64,8 +64,9 @@ export const getOrCreateUserDocument = async (
         },
       };
     } else {
-      // L'utilisateur n'existe pas, créer un nouveau document
-      console.log('➕ Création d\'un nouveau document utilisateur');
+      // L'utilisateur n'existe pas dans Firestore, créer un nouveau document
+      console.log('➕ Aucun document Firestore trouvé pour:', userData.email);
+      console.log('➕ Création d\'un nouveau document Firestore...');
       const newUserData: FirestoreUserData = {
         email: userData.email,
         firstName: userData.firstName,
@@ -73,7 +74,7 @@ export const getOrCreateUserDocument = async (
         hasPaid: false,
         subscription: {
           plan: 'free',
-          creditsRemaining: 0,
+          creditsRemaining: 3, // 3 crédits gratuits pour tous les utilisateurs
           lastUpdated: serverTimestamp(),
         },
         createdAt: serverTimestamp(),
@@ -81,7 +82,7 @@ export const getOrCreateUserDocument = async (
       };
       
       await setDoc(userDocRef, newUserData);
-      console.log('✅ Document utilisateur créé avec succès');
+      console.log('✅ Nouveau document Firestore créé avec succès pour:', userData.email);
       
       return {
         id: firebaseUserId,
@@ -93,13 +94,13 @@ export const getOrCreateUserDocument = async (
         firestoreId: firebaseUserId,
         subscription: {
           plan: 'free',
-          creditsRemaining: 0,
+          creditsRemaining: 3, // 3 crédits gratuits
           lastUpdated: new Date().toISOString(),
         },
       };
     }
   } catch (error) {
-    console.error('Erreur lors de la récupération/création du document utilisateur:', error);
+    console.error('❌ ERREUR Firestore pour', userData.email, ':', error);
     
     // En cas d'erreur, retourner un utilisateur par défaut
     return {
@@ -112,7 +113,7 @@ export const getOrCreateUserDocument = async (
       firestoreId: firebaseUserId,
       subscription: {
         plan: 'free',
-        creditsRemaining: 0,
+        creditsRemaining: 3,
       },
     };
   }

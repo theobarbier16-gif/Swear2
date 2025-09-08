@@ -84,13 +84,16 @@ const mapFirebaseUserToUser = async (firebaseUser: FirebaseUser): Promise<User> 
     firstName = email.split('@')[0] || 'Utilisateur';
   }
 
-  // Récupérer ou créer le document utilisateur dans Firestore
+  // TOUJOURS récupérer ou créer le document utilisateur dans Firestore
+  // Cela fonctionne pour les nouveaux utilisateurs ET les utilisateurs existants
   try {
+    console.log('🔍 Tentative de récupération/création du document Firestore pour:', email);
     const user = await getOrCreateUserDocument(firebaseUser.uid, {
       email,
       firstName,
       lastName,
     });
+    console.log('✅ Document Firestore récupéré/créé:', user);
     return user;
   } catch (error) {
     console.error('Erreur lors de la récupération des données utilisateur:', error);
