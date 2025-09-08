@@ -45,6 +45,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onBack }) => {
           email: formData.email, 
           password: formData.password 
         });
+        onBack(); // Retour à la page principale après connexion
       } else {
         await register({ 
           email: formData.email, 
@@ -52,8 +53,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onBack }) => {
           firstName: formData.firstName, 
           lastName: formData.lastName 
         });
+        // Rediriger vers la page des tarifs après inscription
+        onShowPricing(formData.email);
       }
-      onBack(); // Retour à la page principale après connexion réussie
     } catch (error) {
       // L'erreur est gérée par le contexte
     }

@@ -108,7 +108,16 @@ function App() {
   if (currentView === 'login') {
     return (
       <AuthProvider>
-        <LoginPage onBack={handleBackToMain} />
+        <LoginPage onBack={handleBackToMain} onShowPricing={handleShowPricing} />
+      </AuthProvider>
+    );
+  }
+
+  // Si on est sur la page des tarifs, l'afficher
+  if (currentView === 'pricing') {
+    return (
+      <AuthProvider>
+        <PricingPage onBack={handleBackToMain} userEmail={userEmail} />
       </AuthProvider>
     );
   }
