@@ -100,6 +100,10 @@ function App() {
     setCurrentView('login');
   };
 
+  const handleShowPricing = () => {
+    setCurrentView('pricing');
+  };
+
   const handleBackToMain = () => {
     setCurrentView('main');
   };
@@ -135,7 +139,7 @@ function App() {
           <div className="absolute inset-0 bg-gradient-to-t from-vinted-600/20 to-transparent"></div>
         </div>
         
-        <Header onShowLogin={handleShowLogin} />
+        <Header onShowLogin={handleShowLogin} onShowPricing={handleShowPricing} />
         
         {/* Debug Panel - Bouton flottant */}
         <div className="fixed bottom-4 right-4 z-50">

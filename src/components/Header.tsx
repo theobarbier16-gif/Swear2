@@ -5,9 +5,10 @@ import UserMenu from './auth/UserMenu';
 
 interface HeaderProps {
   onShowLogin?: () => void;
+  onShowPricing?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onShowLogin }) => {
+const Header: React.FC<HeaderProps> = ({ onShowLogin, onShowPricing }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { isAuthenticated, user, logout } = useAuth();
 
@@ -39,12 +40,12 @@ const Header: React.FC<HeaderProps> = ({ onShowLogin }) => {
               >
                 Contact
               </a>
-              <a 
-                href="#prix" 
+              <button 
+                onClick={onShowPricing}
                 className="hover:text-white transition-colors duration-200 cursor-pointer"
               >
                 Prix
-              </a>
+              </button>
               {isAuthenticated ? (
                 <div className="flex items-center space-x-4">
                   <span className="text-white/90 text-sm">
@@ -96,12 +97,18 @@ const Header: React.FC<HeaderProps> = ({ onShowLogin }) => {
                 Contact
               </a>
               <a 
-                href="#prix" 
-                className="text-white/80 hover:text-white transition-colors duration-200 py-2 px-4 rounded-lg hover:bg-white/10"
-                onClick={() => setIsMobileMenuOpen(false)}
+                onClick={() => {
+                  onShowPricing?.();
+                  setIsMobileMenuOpen(false);
+                }}
+                onClick={() => {
+                  onShowPricing?.();
+                  setIsMobileMenuOpen(false);
+                }}
+                className="text-white/80 hover:text-white transition-colors duration-200 py-2 px-4 rounded-lg hover:bg-white/10 cursor-pointer"
               >
                 Prix
-              </a>
+              </button>
               {isAuthenticated ? (
                 <div className="space-y-2">
                   <div className="text-white/90 py-2 px-4">
