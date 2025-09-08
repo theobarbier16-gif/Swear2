@@ -9,30 +9,49 @@ interface LoginPageProps {
 const LoginPage: React.FC<LoginPageProps> = ({ onBack }) => {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    firstName: '',
+    lastName: ''
+  });
 
   const { login, register, isLoading, error, clearError } = useAuth();
 
-  // Reset form when mode changes
-  React.useEffect(() => {
-    setEmail('');
-    setPassword('');
-    setFirstName('');
-    setLastName('');
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleModeChange = (newMode: 'login' | 'register') => {
+    setMode(newMode);
+    setFormData({
+      email: '',
+      password: '',
+      firstName: '',
+      lastName: ''
+    });
     clearError();
-  }, [mode, clearError]);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
       if (mode === 'login') {
-        await login({ email, password });
+        await login({ 
+          email: formData.email, 
+          password: formData.password 
+        });
       } else {
-        await register({ email, password, firstName, lastName });
+        await register({ 
+          email: formData.email, 
+          password: formData.password, 
+          firstName: formData.firstName, 
+          lastName: formData.lastName 
+        });
       }
       onBack(); // Retour à la page principale après connexion réussie
     } catch (error) {
@@ -113,10 +132,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onBack }) => {
                     </label>
                     <input
                       type="text"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
+                      value={formData.firstName}
+                      onChange={(e) => handleInputChange('firstName', e.target.value)}
                       required
-                      className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/60 focus:bg-white/30 focus:border-white/50 focus:outline-none transition-all backdrop-blur-lg"
+                      className="w-full px-4 py-3 bg-white text-gray-900 border border-gray-300 rounded-xl placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-vinted-500 focus:border-transparent"
                       placeholder="Prénom"
                     />
                   </div>
@@ -126,10 +145,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onBack }) => {
                     </label>
                     <input
                       type="text"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
+                      value={formData.lastName}
+                      onChange={(e) => handleInputChange('lastName', e.target.value)}
                       required
-                      className="w-full px-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/60 focus:bg-white/30 focus:border-white/50 focus:outline-none transition-all backdrop-blur-lg"
+                      className="w-full px-4 py-3 bg-white text-gray-900 border border-gray-300 rounded-xl placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-vinted-500 focus:border-transparent"
                       placeholder="Nom"
                     />
                   </div>
@@ -142,13 +161,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onBack }) => {
                   Email
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/60" />
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={formData.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
                     required
-                    className="w-full pl-12 pr-4 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/60 focus:bg-white/30 focus:border-white/50 focus:outline-none transition-all backdrop-blur-lg"
+                    className="w-full pl-12 pr-4 py-3 bg-white text-gray-900 border border-gray-300 rounded-xl placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-vinted-500 focus:border-transparent"
                     placeholder="votre@email.com"
                   />
                 </div>
@@ -160,20 +179,20 @@ const LoginPage: React.FC<LoginPageProps> = ({ onBack }) => {
                   Mot de passe
                 </label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/60" />
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    value={formData.password}
+                    onChange={(e) => handleInputChange('password', e.target.value)}
                     required
                     minLength={6}
-                    className="w-full pl-12 pr-12 py-3 bg-white/20 border border-white/30 rounded-xl text-white placeholder-white/60 focus:bg-white/30 focus:border-white/50 focus:outline-none transition-all backdrop-blur-lg"
+                    className="w-full pl-12 pr-12 py-3 bg-white text-gray-900 border border-gray-300 rounded-xl placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-vinted-500 focus:border-transparent"
                     placeholder="••••••••"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/60 hover:text-white/80 transition-colors"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
@@ -207,7 +226,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onBack }) => {
               <p className="text-white/80">
                 {mode === 'login' ? "Pas de compte ?" : "Déjà un compte ?"}
                 <button
-                  onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
+                  type="button"
+                  onClick={() => handleModeChange(mode === 'login' ? 'register' : 'login')}
                   className="ml-2 text-white font-medium hover:text-white/80 transition-colors underline"
                 >
                   {mode === 'login' ? 'S\'inscrire' : 'Se connecter'}
