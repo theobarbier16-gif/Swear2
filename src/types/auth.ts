@@ -4,6 +4,7 @@ export interface User {
   firstName: string;
   lastName: string;
   createdAt: string;
+  hasPaid: boolean;
   subscription?: {
     plan: 'free' | 'premium' | 'pro';
     creditsRemaining: number;

@@ -50,6 +50,7 @@ const Header: React.FC<HeaderProps> = ({ onShowLogin, onShowPricing }) => {
                 <div className="flex items-center space-x-4">
                   <span className="text-white/90 text-sm">
                     Bonjour, {user?.firstName}
+                    {user?.hasPaid && <span className="ml-2 text-xs bg-green-500 text-white px-2 py-1 rounded-full">Premium</span>}
                   </span>
                   <button
                     onClick={handleLogout}
@@ -109,6 +110,7 @@ const Header: React.FC<HeaderProps> = ({ onShowLogin, onShowPricing }) => {
                 <div className="space-y-2">
                   <div className="text-white/90 py-2 px-4">
                     Bonjour, {user?.firstName} !
+                    {user?.hasPaid && <span className="ml-2 text-xs bg-green-500 text-white px-2 py-1 rounded-full">Premium</span>}
                   </div>
                   <button 
                     onClick={handleLogout}

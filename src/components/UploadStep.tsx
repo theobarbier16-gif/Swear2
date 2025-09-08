@@ -191,12 +191,15 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
               <div>
                 <h4 className="text-white font-medium">Bienvenue, {user.firstName} !</h4>
                 <p className="text-white/70 text-sm">
-                  Plan {user.subscription?.plan || 'Free'} • {user.subscription?.creditsRemaining || 0} crédits restants
+                  {user.hasPaid 
+                    ? `Plan ${user.subscription?.plan || 'Premium'} • ${user.subscription?.creditsRemaining || 0} crédits restants`
+                    : 'Plan gratuit • Paiement requis pour utiliser le service'
+                  }
                 </p>
               </div>
-              {(user.subscription?.creditsRemaining || 0) <= 1 && (
+              {!user.hasPaid && (
                 <button className="bg-white text-vinted-500 px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/90 transition-colors">
-                  Upgrader
+                  Souscrire
                 </button>
               )}
             </div>
@@ -381,7 +384,14 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
                 }
               `}
             >
-              {isProcessing ? 'Traitement...' : isAuthenticated ? 'Choisir un Fichier' : 'Se connecter pour commencer'}
+              {isProcessing 
+                ? 'Traitement...' 
+                : !isAuthenticated 
+                ? 'Se connecter pour commencer'
+                : !user?.hasPaid
+                ? 'Souscrire pour utiliser'
+                : 'Choisir un Fichier'
+              }
             </button>
             
             <p className="text-xs text-white/60 mt-4">

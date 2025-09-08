@@ -86,9 +86,10 @@ const mapFirebaseUserToUser = (firebaseUser: FirebaseUser): User => {
     firstName: firstName,
     lastName: lastName,
     createdAt: firebaseUser.metadata.creationTime || new Date().toISOString(),
+    hasPaid: false, // Par défaut, l'utilisateur n'a pas payé
     subscription: {
       plan: 'free',
-      creditsRemaining: 3, // 3 essais gratuits par défaut
+      creditsRemaining: 0, // Pas de crédits gratuits, paiement requis
     },
   };
 };
@@ -216,12 +217,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: 'CLEAR_ERROR' });
   };
 
+  const updateUserPaymentStatus = (hasPaid: boolean) => {
+    if (state.user) {
+      const updatedUser = {
+        ...state.user,
+        hasPaid: hasPaid,
+        subscription: {
+          ...state.user.subscription,
+          plan: hasPaid ? 'premium' : 'free',
+          creditsRemaining: hasPaid ? 25 : 0,
+        }
+      };
+      dispatch({ type: 'SET_USER', payload: updatedUser });
+    }
+  };
   const value: AuthContextType = {
     ...state,
     login,
     register,
     logout,
     clearError,
+    updateUserPaymentStatus,
   };
 
   return (

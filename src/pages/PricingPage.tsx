@@ -78,6 +78,12 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       const encodedEmail = encodeURIComponent(email);
       const stripeUrl = `https://buy.stripe.com/test_fZucMYcHubsj23adLG2VG00?prefilled_email=${encodedEmail}`;
       window.open(stripeUrl, '_blank');
+      
+      // Simuler le succès du paiement après un délai (en production, ceci serait géré par un webhook Stripe)
+      setTimeout(() => {
+        updateUserPaymentStatus(true);
+        onBack(); // Rediriger vers la page d'accueil
+      }, 3000); // 3 secondes pour simuler le processus de paiement
     } else {
       // Rediriger vers le système de paiement (à implémenter)
       alert(`Redirection vers le paiement pour le plan ${planName}`);
