@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Upload, Sparkles, Download, ArrowLeft, Check } from 'lucide-react';
 import { processImageWithN8N, setDebugLogger } from './utils/imageProcessor';
-import { AuthProvider } from './contexts/AuthContext';
 import Header from './components/Header';
 import UploadStep from './components/UploadStep';
 import ProcessingStep from './components/ProcessingStep';
@@ -120,30 +119,25 @@ function App() {
   // Si on est sur la page de connexion, l'afficher
   if (currentView === 'login') {
     return (
-      <AuthProvider>
-        <LoginPage onBack={handleBackToMain} onShowPricing={handleShowPricingWithEmail} />
-      </AuthProvider>
+      <LoginPage onBack={handleBackToMain} onShowPricing={handleShowPricingWithEmail} />
     );
   }
 
   // Si on est sur la page des tarifs, l'afficher
   if (currentView === 'pricing') {
     return (
-      <AuthProvider>
-        <PricingPage 
-          onBack={handleBackToMain} 
-          userEmail={userEmail}
-          currentUserEmail={user?.email}
-        />
-      </AuthProvider>
+      <PricingPage 
+        onBack={handleBackToMain} 
+        userEmail={userEmail}
+        currentUserEmail={user?.email}
+      />
     );
   }
 
   const stepNumber = currentStep === 'upload' ? 1 : currentStep === 'processing' ? 2 : 3;
 
   return (
-    <AuthProvider>
-      <div className="min-h-screen bg-gradient-to-br from-vinted-500 via-vinted-400 to-vinted-600 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-vinted-500 via-vinted-400 to-vinted-600 relative overflow-hidden">
         {/* Background Effects */}
         <div className="absolute inset-0">
           <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
@@ -233,8 +227,7 @@ function App() {
         </main>
 
         <Footer />
-      </div>
-    </AuthProvider>
+    </div>
   );
 }
 
