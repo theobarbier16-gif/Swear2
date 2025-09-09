@@ -170,16 +170,6 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
           updateUserPaymentStatus(true, 'starter');
           alert('🎉 Plan Starter activé ! Vous avez maintenant 25 crédits.');
           window.location.reload();
-            '2. Cliquez sur "Mettre à jour vers Starter" ci-dessous\n' +
-            '3. Ou rafraîchissez la page (F5)\n\n' +
-      
-      
-      // Ajouter un bouton pour forcer la mise à jour vers Starter
-      setTimeout(() => {
-        if (window.confirm('✅ Paiement Stripe terminé ?\n\nCliquez OK pour activer votre plan Starter maintenant.')) {
-          updateUserPaymentStatus(true, 'starter');
-          alert('🎉 Plan Starter activé ! Vous avez maintenant 25 crédits.');
-          window.location.reload();
         }
       }, 3000);
       
