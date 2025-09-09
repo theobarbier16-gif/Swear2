@@ -110,11 +110,26 @@ function App() {
         addDebugLog('✅ Traitement réussi !');
         setGeneratedImage(result.imageUrl);
         
-        // Décrémenter les crédits de l'utilisateur
+        // Décrémenter les crédits de l'utilisateur après réception réussie
         if (user && user.firestoreId) {
           try {
             await decrementUserCredits(user.firestoreId, 1);
             addDebugLog('💳 Crédit déduit avec succès');
+            
+            // Mettre à jour l'état local immédiatement pour l'UI
+            setUser(prevUser => {
+              if (prevUser && prevUser.subscription) {
+                return {
+                  ...prevUser,
+                  subscription: {
+                    ...prevUser.subscription,
+                    creditsRemaining: Math.max(0, prevUser.subscription.creditsRemaining - 1)
+                  }
+                };
+              }
+              return prevUser;
+            });
+            
           } catch (error) {
             addDebugLog(`⚠️ Erreur lors de la déduction du crédit: ${error}`);
           }

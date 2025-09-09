@@ -425,6 +425,9 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
     const imageUrl = URL.createObjectURL(imageBlob);
     debugLog('✅ URL de l\'image créée');
     
+    // Signaler que l'image a été reçue avec succès
+    debugLog('🎯 Image reçue avec succès - Crédit sera déduit');
+    
     return {
       success: true,
       imageUrl: imageUrl,
@@ -593,6 +596,7 @@ const simulateProcessing = async (): Promise<WebhookResponse> => {
       }, 'image/png');
     });
   }
+  debugLog('🎯 Image blob reçue avec succès - Crédit sera déduit');
   
   return {
     success: false,
