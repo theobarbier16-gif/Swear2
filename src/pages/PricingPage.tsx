@@ -16,6 +16,49 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
   const { user } = useAuth();
   const { updateUserPaymentStatus } = useAuth();
 
+  // Fonction pour gérer les changements de plan
+  const handlePlanChange = async (newPlan: string) => {
+    if (!user) return;
+    
+    try {
+      console.log(`🔄 Changement de plan: ${getCurrentPlan()} → ${newPlan}`);
+      
+      // Déterminer les nouveaux crédits selon le plan
+      let newCredits = 3; // Free plan par défaut
+      let hasPaid = false;
+      
+      switch (newPlan) {
+        case 'starter':
+          newCredits = 25;
+          hasPaid = true;
+          break;
+        case 'pro':
+          newCredits = 150;
+          hasPaid = true;
+          break;
+        case 'free':
+          newCredits = 3;
+          hasPaid = false;
+          break;
+      }
+      
+      console.log(`💳 Nouveau plan: ${newPlan}, Crédits: ${newCredits}, Payé: ${hasPaid}`);
+      
+      // Mettre à jour le statut utilisateur
+      await updateUserPaymentStatus(hasPaid, newPlan);
+      
+      console.log(`✅ Plan mis à jour avec succès: ${newPlan}`);
+      
+      // Rafraîchir la page pour afficher les changements
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+      
+    } catch (error) {
+      console.error('❌ Erreur lors du changement de plan:', error);
+    }
+  };
+
   // Vérification automatique du paiement au chargement de la page
   useEffect(() => {
     const checkPaymentStatus = async () => {
@@ -40,16 +83,22 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
               
               if (window.location.href.includes('pro') || urlParams.get('plan') === 'pro') {
                 planType = 'pro';
+              } else if (window.location.href.includes('starter') || urlParams.get('plan') === 'starter') {
+                planType = 'starter';
+              }
+              
+              // Vérifier aussi le localStorage pour le plan sélectionné
+              const selectedPlan = localStorage.getItem('selectedPlan');
+              if (selectedPlan && (selectedPlan === 'starter' || selectedPlan === 'pro')) {
+                planType = selectedPlan;
               }
               
               console.log(`✅ Simulation: Paiement ${planType} détecté, activation du plan...`);
-              await updateUserPaymentStatus(true, planType);
+              await handlePlanChange(planType);
               
               // Nettoyer l'URL
               window.history.replaceState({}, document.title, window.location.pathname);
-              
-              // Rafraîchir pour afficher les changements
-              window.location.reload();
+              localStorage.removeItem('selectedPlan');
               
             } catch (error) {
               console.error('Erreur lors de l\'activation du plan:', error);
@@ -78,12 +127,15 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
         if (timeSinceInteraction < 5 * 60 * 1000) {
           console.log('🎯 Interaction Stripe récente détectée, vérification...');
           
+          // Récupérer le plan sélectionné
+          const selectedPlan = localStorage.getItem('selectedPlan') || 'starter';
+          
           if (STRIPE_TEST_MODE) {
             // Simuler la vérification du paiement
             try {
-              await updateUserPaymentStatus(true, 'starter');
+              await handlePlanChange(selectedPlan);
               localStorage.removeItem('lastStripeInteraction');
-              window.location.reload();
+              localStorage.removeItem('selectedPlan');
             } catch (error) {
               console.error('Erreur vérification:', error);
             }
@@ -223,7 +275,12 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
   const handleSelectPlan = (planId: string, planName: string) => {
     if (planId === 'free') {
       // Plan gratuit - pas de paiement requis
-      onBack();
+      if (user && user.hasPaid) {
+        // Downgrade vers le plan gratuit
+        handlePlanChange('free');
+      } else {
+        onBack();
+      }
     } else if (planId === 'starter') {
       // Marquer l'interaction avec Stripe
       localStorage.setItem('lastStripeInteraction', Date.now().toString());
@@ -421,13 +478,13 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
                       w-full py-3 px-6 rounded-xl font-medium text-white transition-all duration-200 shadow-lg
                       ${isCurrent && user?.hasPaid
                         ? 'bg-gray-500 cursor-not-allowed opacity-50' 
-                        : isDowngrade && plan.id === 'free'
+                        : canUpgrade || (isDowngrade && plan.id === 'free')
                         ? 'bg-green-500 hover:bg-green-600 hover:scale-105 hover:shadow-xl'
                         : plan.buttonColor + ' hover:scale-105 hover:shadow-xl'
                       }
                     `}
                   >
-                    {isCurrent && user?.hasPaid ? 'Plan actuel' : getButtonText(plan.id, plan.name)}
+                    {getButtonText(plan.id, plan.name)}
                   </button>
                 </div>
               );
@@ -439,20 +496,28 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
             <div className="mt-12 max-w-2xl mx-auto">
               <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 text-center">
                 <h3 className="text-lg font-semibold text-white mb-3">
-                  🔗 Gestion des abonnements
+                  🔗 Gestion de votre abonnement
                 </h3>
                 <p className="text-white/80 text-sm mb-4">
-                  Pour modifier ou annuler votre abonnement, gérez-le directement sur Stripe.
-                  Tous les changements sont automatiquement synchronisés avec votre compte.
+                  Vous pouvez changer de plan à tout moment. Les changements sont automatiquement 
+                  synchronisés avec votre compte et vos crédits sont mis à jour instantanément.
                 </p>
-                <a
-                  href="https://billing.stripe.com/p/login/test_00000000000000000000000000"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center px-4 py-2 bg-white/20 text-white rounded-lg border border-white/30 hover:bg-white/30 transition-colors text-sm"
-                >
-                  🔗 Gérer sur Stripe
-                </a>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <button
+                    onClick={() => handlePlanChange('free')}
+                    className="inline-flex items-center px-4 py-2 bg-red-500/20 text-red-300 rounded-lg border border-red-500/30 hover:bg-red-500/30 transition-colors text-sm"
+                  >
+                    ⬇️ Passer au plan gratuit
+                  </button>
+                  <a
+                    href="https://billing.stripe.com/p/login/test_00000000000000000000000000"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-4 py-2 bg-white/20 text-white rounded-lg border border-white/30 hover:bg-white/30 transition-colors text-sm"
+                  >
+                    🔗 Gérer sur Stripe
+                  </a>
+                </div>
                 <div className="mt-4 p-3 bg-white/5 rounded-lg">
                   <p className="text-xs text-white/60">
                     💡 Carte de test : 5454 5454 5454 5454 • Date future • CVC : 123
