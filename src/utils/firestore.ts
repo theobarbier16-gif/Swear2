@@ -165,16 +165,17 @@ export const getOrCreateUserDocument = async (
 export const updateUserPaymentStatus = async (
   firebaseUserId: string,
   hasPaid: boolean,
-  creditsToAdd: number = 25
+  creditsToAdd: number = 25,
+  planType: 'free' | 'starter' | 'pro' = 'starter'
 ): Promise<void> => {
   const userDocRef = doc(db, USERS_COLLECTION, firebaseUserId);
   
   try {
-    console.log('💳 Mise à jour du statut de paiement:', { firebaseUserId, hasPaid, creditsToAdd });
+    console.log('💳 Mise à jour du statut de paiement:', { firebaseUserId, hasPaid, creditsToAdd, planType });
     const updateData = {
       hasPaid: hasPaid,
       subscription: {
-        plan: hasPaid ? 'premium' : 'free',
+        plan: hasPaid ? planType : 'free',
         creditsRemaining: hasPaid ? creditsToAdd : 0,
         lastUpdated: serverTimestamp(),
       },

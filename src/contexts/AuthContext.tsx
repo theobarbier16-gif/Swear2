@@ -262,7 +262,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateUserPaymentStatus = (hasPaid: boolean) => {
     if (state.user && state.user.firestoreId) {
       // Mettre à jour Firestore
-      updateFirestorePaymentStatus(state.user.firestoreId, hasPaid, 25)
+      updateFirestorePaymentStatus(state.user.firestoreId, hasPaid, 25, 'starter')
         .then(() => {
           console.log('Statut de paiement mis à jour avec succès');
         })
@@ -276,7 +276,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         hasPaid: hasPaid,
         subscription: {
           ...state.user.subscription,
-          plan: hasPaid ? 'premium' : 'free',
+          plan: hasPaid ? 'starter' : 'free',
           creditsRemaining: hasPaid ? 25 : 0,
           lastUpdated: new Date().toISOString(),
         }

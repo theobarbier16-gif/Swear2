@@ -140,8 +140,17 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       
       // NE PAS simuler le paiement - attendre la vraie confirmation Stripe
       alert('💳 Vous allez être redirigé vers Stripe pour effectuer le paiement. Une fois le paiement confirmé, vous aurez accès au service Premium.');
+    } else if (planId === 'pro') {
+      // Rediriger vers Stripe Pro avec l'email de l'utilisateur
+      const email = currentUserEmail || userEmail || 'exemple@gmail.com';
+      const encodedEmail = encodeURIComponent(email);
+      const stripeUrl = `https://buy.stripe.com/test_eVqfZa22Q7c3bDK4b62VG01?prefilled_email=${encodedEmail}`;
+      window.open(stripeUrl, '_blank');
+      
+      // NE PAS simuler le paiement - attendre la vraie confirmation Stripe
+      alert('💳 Vous allez être redirigé vers Stripe pour effectuer le paiement du plan Pro. Une fois le paiement confirmé, vous aurez accès à toutes les fonctionnalités premium.');
     } else {
-      // Rediriger vers le système de paiement (à implémenter)
+      // Fallback pour d'autres plans
       alert(`Redirection vers le paiement pour le plan ${planName}`);
     }
   };
