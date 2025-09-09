@@ -119,172 +119,39 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
   };
 
   const handleSelectPlan = (planId: string, planName: string) => {
-    // Empêcher l'achat du même plan
-    if (planId === currentPlan && user?.hasPaid) {
-      alert('✅ Vous êtes déjà abonné à ce plan !\n\nVotre abonnement est actif et vous avez accès à toutes les fonctionnalités.');
-      return;
-    }
-    
     if (planId === 'free') {
-      // L'utilisateur veut passer/rester sur le plan gratuit
-      if (user && user.hasPaid) {
-        // Confirmation pour la rétrogradation vers gratuit
-        if (window.confirm('⚠️ Êtes-vous sûr de vouloir passer au plan gratuit ?\n\n• Vous perdrez l\'accès aux fonctionnalités premium\n• Vous n\'aurez plus que 3 générations par mois\n• Votre abonnement payant sera annulé\n\nCette action est immédiate et gratuite.')) {
-          updateUserPaymentStatus(false, 'free');
-          alert('✅ Vous êtes maintenant sur le plan gratuit. Aucun paiement ne sera prélevé.');
-          onBack();
-        }
-      } else {
-        // L'utilisateur est déjà sur le plan gratuit
-        onBack();
-      }
+      // Plan gratuit - pas de paiement requis
+      onBack();
     } else if (planId === 'starter') {
-      // Rediriger vers Stripe avec l'email de l'utilisateur
+      // Redirection vers Stripe pour le plan Starter
       const email = currentUserEmail || userEmail || 'exemple@gmail.com';
       const encodedEmail = encodeURIComponent(email);
       const stripeUrl = `https://buy.stripe.com/test_fZucMYcHubsj23adLG2VG00?prefilled_email=${encodedEmail}`;
       window.open(stripeUrl, '_blank');
       
-      // Nouvelle approche avec vérification automatique
-      showPaymentInstructions('starter', stripeUrl);
+      // Afficher les instructions de paiement
+      alert('💳 Paiement Stripe\n\n' +
+            '1. Complétez votre paiement sur Stripe\n' +
+            '2. Votre plan sera automatiquement activé\n' +
+            '3. Rafraîchissez la page après paiement\n\n' +
+            '⚠️ IMPORTANT: Seuls les paiements Stripe valides activent les plans');
       
     } else if (planId === 'pro') {
-      // Rediriger vers Stripe Pro avec l'email de l'utilisateur
+      // Redirection vers Stripe pour le plan Pro
       const email = currentUserEmail || userEmail || 'exemple@gmail.com';
       const encodedEmail = encodeURIComponent(email);
       const stripeUrl = `https://buy.stripe.com/test_eVqfZa22Q7c3bDK4b62VG01?prefilled_email=${encodedEmail}`;
       
       window.open(stripeUrl, '_blank');
       
-      // Nouvelle approche avec vérification automatique
-      showPaymentInstructions('pro', stripeUrl);
+      // Afficher les instructions de paiement
+      alert('💳 Paiement Stripe\n\n' +
+            '1. Complétez votre paiement sur Stripe\n' +
+            '2. Votre plan sera automatiquement activé\n' +
+            '3. Rafraîchissez la page après paiement\n\n' +
+            '⚠️ IMPORTANT: Seuls les paiements Stripe valides activent les plans');
       
-    } else {
-      // Fallback pour d'autres plans
-      alert(`Redirection vers le paiement pour le plan ${planName}`);
     }
-  };
-
-  const showPaymentInstructions = (planType: string, stripeUrl: string) => {
-    const planName = planType === 'starter' ? 'Starter' : 'Pro';
-    const credits = planType === 'starter' ? 25 : 150;
-    
-    // Créer une modal personnalisée avec instructions
-    const modalHtml = `
-      <div id="payment-modal" style="
-        position: fixed; 
-        top: 0; 
-        left: 0; 
-        width: 100%; 
-        height: 100%; 
-        background: rgba(0,0,0,0.8); 
-        display: flex; 
-        align-items: center; 
-        justify-content: center; 
-        z-index: 10000;
-        font-family: Arial, sans-serif;
-      ">
-        <div style="
-          background: white; 
-          padding: 30px; 
-          border-radius: 15px; 
-          max-width: 500px; 
-          width: 90%;
-          text-align: center;
-          box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-        ">
-          <h2 style="color: #09B1BA; margin-bottom: 20px;">💳 Paiement ${planName}</h2>
-          <p style="margin-bottom: 20px; color: #333;">
-            Une nouvelle fenêtre Stripe s'est ouverte.<br>
-            Complétez votre paiement puis revenez ici.
-          </p>
-          <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
-            <p style="margin: 0; color: #0369a1; font-weight: bold;">
-              ✨ Plan ${planName}: ${credits} crédits/mois
-            </p>
-          </div>
-          <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-            <button id="activate-plan" style="
-              background: #09B1BA; 
-              color: white; 
-              border: none; 
-              padding: 12px 24px; 
-              border-radius: 8px; 
-              cursor: pointer;
-              font-weight: bold;
-            ">✅ J'ai payé - Activer ${planName}</button>
-            <button id="check-later" style="
-              background: #6b7280; 
-              color: white; 
-              border: none; 
-              padding: 12px 24px; 
-              border-radius: 8px; 
-              cursor: pointer;
-            ">⏰ Vérifier plus tard</button>
-            <button id="cancel-payment" style="
-              background: #ef4444; 
-              color: white; 
-              border: none; 
-              padding: 12px 24px; 
-              border-radius: 8px; 
-              cursor: pointer;
-            ">❌ Annuler</button>
-          </div>
-          <p style="font-size: 12px; color: #666; margin-top: 15px;">
-            💡 Si la fenêtre Stripe ne s'est pas ouverte, 
-            <a href="${stripeUrl}" target="_blank" style="color: #09B1BA;">cliquez ici</a>
-          </p>
-        </div>
-      </div>
-    `;
-    
-    // Ajouter la modal au DOM
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
-    
-    // Gérer les événements
-    const modal = document.getElementById('payment-modal');
-    const activateBtn = document.getElementById('activate-plan');
-    const checkLaterBtn = document.getElementById('check-later');
-    const cancelBtn = document.getElementById('cancel-payment');
-    
-    const closeModal = () => {
-      if (modal) {
-        modal.remove();
-      }
-    };
-    
-    activateBtn?.addEventListener('click', async () => {
-      try {
-        // Activer le plan immédiatement
-        await updateUserPaymentStatus(true, planType as 'starter' | 'pro');
-        closeModal();
-        
-        // Confirmation de succès
-        alert(`🎉 Plan ${planName} activé avec succès !\n\n✨ Vous avez maintenant ${credits} crédits par mois.\n🚀 Vous pouvez commencer à utiliser le service immédiatement.`);
-        
-        // Rafraîchir pour voir les changements
-        window.location.reload();
-      } catch (error) {
-        alert('❌ Erreur lors de l\'activation. Veuillez réessayer ou contacter le support.');
-        console.error('Erreur activation:', error);
-      }
-    });
-    
-    checkLaterBtn?.addEventListener('click', () => {
-      closeModal();
-      alert('⏰ Vous pouvez revenir activer votre plan quand le paiement sera terminé.\n\n💡 Astuce: Rafraîchissez la page (F5) après paiement pour voir les changements.');
-    });
-    
-    cancelBtn?.addEventListener('click', () => {
-      closeModal();
-    });
-    
-    // Fermer en cliquant sur le fond
-    modal?.addEventListener('click', (e) => {
-      if (e.target === modal) {
-        closeModal();
-      }
-    });
   };
 
   const getPlanStatus = (planId: string) => {
@@ -477,24 +344,20 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
             <div className="mt-12 max-w-2xl mx-auto">
               <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 text-center">
                 <h3 className="text-lg font-semibold text-white mb-3">
-                  💡 Bon à savoir
+                  ⚠️ Gestion des abonnements
                 </h3>
-                <div className="text-left space-y-2 text-white/80 text-sm mb-4">
-                  <p>• <strong>Plan gratuit :</strong> 0€/mois - Aucun paiement</p>
-                  <p>• <strong>Rétrogradation :</strong> Immédiate et gratuite</p>
-                  <p>• <strong>Annulation :</strong> Pas d'engagement, résiliable à tout moment</p>
-                  <p>• <strong>Crédits :</strong> Les crédits non utilisés sont perdus lors du changement de plan</p>
-                </div>
-                <p className="text-white/60 text-xs mb-4">
-                  ⚠️ IMPORTANT: L'annulation Stripe doit être gérée côté serveur pour être effective.
+                <p className="text-white/80 text-sm mb-4">
+                  Pour modifier ou annuler votre abonnement, vous devez le faire directement sur Stripe.
+                  Les changements de plan sont automatiquement synchronisés.
                 </p>
-                <button
-                  onClick={handleCancelSubscription}
-                  className="inline-flex items-center px-4 py-2 bg-red-500/20 text-red-300 rounded-lg border border-red-500/30 hover:bg-red-500/30 transition-colors text-sm"
+                <a
+                  href="https://billing.stripe.com/p/login/test_00000000000000000000000000"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center px-4 py-2 bg-white/20 text-white rounded-lg border border-white/30 hover:bg-white/30 transition-colors text-sm"
                 >
-                  <X className="w-4 h-4 mr-2" />
-                  Annuler et passer au gratuit
-                </button>
+                  🔗 Gérer sur Stripe
+                </a>
               </div>
             </div>
           )}
