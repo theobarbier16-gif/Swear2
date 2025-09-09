@@ -138,6 +138,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const user = await mapFirebaseUserToUser(firebaseUser);
           console.log('✅ === MAPPING TERMINE ===');
           console.log('✅ User final:', user);
+          console.log('✅ Plan utilisateur:', user.subscription?.plan);
+          console.log('✅ hasPaid:', user.hasPaid);
+          console.log('✅ Crédits restants:', user.subscription?.creditsRemaining);
           dispatch({ type: 'SET_USER', payload: user });
         } catch (error) {
           console.error('❌ === ERREUR MAPPING UTILISATEUR ===');

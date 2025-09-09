@@ -77,6 +77,8 @@ function App() {
       return;
     }
     
+    addDebugLog(`🔍 Vérification utilisateur - Plan: ${user.subscription?.plan}, hasPaid: ${user.hasPaid}, Crédits: ${user.subscription?.creditsRemaining}`);
+    
     if (!user.hasPaid) {
       addDebugLog('❌ Utilisateur n\'a pas payé');
       setProcessingError('Vous devez souscrire à un abonnement pour utiliser ce service.');

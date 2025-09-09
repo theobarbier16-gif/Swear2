@@ -50,8 +50,15 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
         return;
       }
       
-      if (user?.subscription?.creditsRemaining === 0) {
-        alert('Vous n\'avez plus de crédits disponibles. Veuillez upgrader votre abonnement.');
+      // Vérifier les crédits ET le statut de paiement
+      if (!user?.hasPaid || (user?.subscription?.creditsRemaining || 0) <= 0) {
+        if (!user?.hasPaid) {
+          alert('Vous devez souscrire à un abonnement pour utiliser ce service.');
+          onShowPricing?.();
+        } else {
+          alert('Vous n\'avez plus de crédits disponibles. Veuillez recharger votre compte.');
+          onShowPricing?.();
+        }
         return;
       }
       

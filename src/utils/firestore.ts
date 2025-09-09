@@ -61,13 +61,18 @@ export const getOrCreateUserDocument = async (
       console.log('📄 === DOCUMENT EXISTANT ===');
       const data = userDoc.data() as FirestoreUserData;
       console.log('📄 Données du document:', data);
+      
+      // Déterminer hasPaid selon le plan
+      const isPaidPlan = data.subscription?.plan && data.subscription.plan !== 'free';
+      console.log('💳 Plan détecté:', data.subscription?.plan, '- hasPaid calculé:', isPaidPlan);
+      
       return {
         id: firebaseUserId,
         email: data.email,
         firstName: data.firstName,
         lastName: data.lastName,
         createdAt: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-        hasPaid: data.hasPaid || false,
+        hasPaid: isPaidPlan,
         firestoreId: firebaseUserId,
         subscription: {
           plan: data.subscription?.plan || 'free',
