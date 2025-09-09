@@ -3,9 +3,10 @@ import { ClothingOptions } from '../App';
 
 // Configuration des proxies CORS
 const CORS_PROXIES = [
-  'https://cors-anywhere.herokuapp.com/',
   'https://api.allorigins.win/raw?url=',
   'https://corsproxy.io/?',
+  'https://cors-anywhere.herokuapp.com/',
+  'https://proxy.cors.sh/',
 ];
 
 // Variable globale pour la fonction d'ajout de logs
@@ -188,20 +189,46 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
     
     // Essayer plusieurs URLs de fallback
     const webhookUrls = [
-      'https://n8n-automatisation.fr/webhook-test/testvolt',
-      'https://n8n-automatisation.fr/webhook-test/testvolt',
-      'https://n8n-automatisation.fr/webhook/testvolt',
       'https://n8n-automatisation.fr/webhook-test/testvolt'
     ];
+    
+    // Détecter si on est en production
+    const isProduction = window.location.hostname !== 'localhost' && 
+                        window.location.hostname !== '127.0.0.1' && 
+                        !window.location.hostname.includes('localhost');
+    
+    debugLog(`🌍 Environnement: ${isProduction ? 'Production' : 'Développement'}`);
     
     let response;
     const maxRetries = 2;
     let lastError;
     let successUrl = null;
     
+    // En production, essayer d'abord avec les proxies CORS
+    const urlsToTry = [];
+    
+    if (isProduction) {
+      // En production, essayer avec proxies CORS d'abord
+      for (const proxy of CORS_PROXIES) {
+        urlsToTry.push(proxy + encodeURIComponent(webhookUrls[0]));
+      }
+      // Puis essayer direct
+      urlsToTry.push(...webhookUrls);
+    } else {
+      // En développement, essayer direct d'abord
+      urlsToTry.push(...webhookUrls);
+      // Puis avec proxies si nécessaire
+      for (const proxy of CORS_PROXIES) {
+        urlsToTry.push(proxy + encodeURIComponent(webhookUrls[0]));
+      }
+    }
+    
+    debugLog(`🔗 URLs à tester: ${urlsToTry.length}`);
+    
     // Essayer chaque URL
-    for (const webhookUrl of webhookUrls) {
-      debugLog(`🌐 Test de l'URL: ${webhookUrl}`);
+    for (const webhookUrl of urlsToTry) {
+      const isProxied = CORS_PROXIES.some(proxy => webhookUrl.startsWith(proxy));
+      debugLog(`🌐 Test ${isProxied ? '(via proxy)' : '(direct)'}: ${webhookUrl}`);
       
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
@@ -223,9 +250,13 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
           const headers = {
             'Content-Type': 'application/json',
             'Accept': 'application/json, */*',
-            'User-Agent': 'Swear-App/1.0',
-            'X-Requested-With': 'XMLHttpRequest'
+            'User-Agent': 'Swear-App/1.0'
           };
+          
+          // Ajouter X-Requested-With seulement si pas de proxy
+          if (!isProxied) {
+            headers['X-Requested-With'] = 'XMLHttpRequest';
+          }
           
           debugLog(`📋 Headers envoyés: ${JSON.stringify(headers)}`);
           debugLog(`📦 Taille payload: ${payloadSizeMB} MB`);
@@ -271,12 +302,14 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
             // Diagnostics spécifiques
             if (error.message.includes('Load failed')) {
               debugLog('🌐 Erreur "Load failed" - Essai avec proxy CORS...');
-            } else if (error.message.includes('NetworkError')) {
-              debugLog('📡 Erreur réseau - Vérifiez votre connexion');
             } else if (error.message.includes('CORS')) {
               debugLog('🚫 Erreur CORS - Tentative avec proxy...');
+            } else if (error.message.includes('NetworkError')) {
+              debugLog('📡 Erreur réseau - Vérifiez votre connexion');
             } else if (error.message.includes('Failed to fetch')) {
               debugLog('📡 Failed to fetch - Tentative avec méthode alternative...');
+            } else if (error.message.includes('blocked by CORS policy')) {
+              debugLog('🚫 Bloqué par CORS policy - Proxy requis...');
             }
           }
           
@@ -292,8 +325,9 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
       }
       
       // Si on a une réponse, sortir de la boucle des URLs
-      if (response) {
-        debugLog(`✅ Succès avec l'URL: ${successUrl}`);
+      if (response && response.ok) {
+        const isProxied = CORS_PROXIES.some(proxy => successUrl?.startsWith(proxy));
+        debugLog(`✅ Succès ${isProxied ? '(via proxy)' : '(direct)'}: ${successUrl}`);
         break;
       }
     }
