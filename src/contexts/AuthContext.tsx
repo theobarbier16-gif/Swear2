@@ -17,17 +17,38 @@ interface UserSubscription {
   renewalDate?: Date;
 }
 
-interface AuthUser extends User {
+interface AuthUser {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  firstName?: string;
+  lastName?: string;
   hasPaid?: boolean;
+  firestoreId?: string;
   subscription?: UserSubscription;
+}
+
+interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+interface RegisterCredentials {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
 }
 
 interface AuthContextType {
   user: AuthUser | null;
+  isAuthenticated: boolean;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, name: string) => Promise<void>;
+  error: string | null;
+  login: (credentials: LoginCredentials) => Promise<void>;
+  register: (credentials: RegisterCredentials) => Promise<void>;
   logout: () => Promise<void>;
+  clearError: () => void;
   updateUserPaymentStatus: (hasPaid: boolean, plan?: string) => Promise<void>;
   decrementCredits: () => Promise<boolean>;
 }
@@ -49,6 +70,7 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const getCreditsForPlan = (plan: string): number => {
     switch (plan) {
@@ -61,27 +83,41 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const clearError = () => {
+    setError(null);
+  };
   const loadUserData = async (firebaseUser: User) => {
     try {
+      console.log('🔍 Loading user data for:', firebaseUser.uid);
       const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
       
       if (userDoc.exists()) {
         const userData = userDoc.data();
+        console.log('📊 User data from Firestore:', userData);
         const authUser: AuthUser = {
-          ...firebaseUser,
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName,
+          firstName: userData.firstName || userData.displayName?.split(' ')[0] || '',
+          lastName: userData.lastName || userData.displayName?.split(' ')[1] || '',
           hasPaid: userData.hasPaid || false,
+          firestoreId: firebaseUser.uid,
           subscription: userData.subscription || {
             plan: 'free',
             creditsRemaining: 3,
             maxCredits: 3
           }
         };
+        console.log('✅ Auth user created:', authUser);
         setUser(authUser);
       } else {
+        console.log('📝 Creating new user document');
         // Create new user document
         const newUserData = {
           email: firebaseUser.email,
           displayName: firebaseUser.displayName,
+          firstName: firebaseUser.displayName?.split(' ')[0] || '',
+          lastName: firebaseUser.displayName?.split(' ')[1] || '',
           hasPaid: false,
           subscription: {
             plan: 'free',
@@ -95,18 +131,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         await setDoc(doc(db, 'users', firebaseUser.uid), newUserData);
         
         const authUser: AuthUser = {
-          ...firebaseUser,
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName,
+          firstName: newUserData.firstName,
+          lastName: newUserData.lastName,
           hasPaid: false,
+          firestoreId: firebaseUser.uid,
           subscription: newUserData.subscription
         };
         setUser(authUser);
       }
     } catch (error) {
       console.error('Error loading user data:', error);
+      setError('Erreur lors du chargement des données utilisateur');
       // Fallback to basic user data
       const authUser: AuthUser = {
-        ...firebaseUser,
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        displayName: firebaseUser.displayName,
         hasPaid: false,
+        firestoreId: firebaseUser.uid,
         subscription: {
           plan: 'free',
           creditsRemaining: 3,
@@ -118,7 +163,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   useEffect(() => {
+    console.log('🔄 Setting up auth state listener');
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      console.log('🔐 Auth state changed:', firebaseUser ? 'User logged in' : 'User logged out');
       if (firebaseUser) {
         await loadUserData(firebaseUser);
       } else {
@@ -130,19 +177,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return unsubscribe;
   }, []);
 
-  const register = async (email: string, password: string, name: string) => {
+  const register = async (credentials: RegisterCredentials) => {
+    setError(null);
+    setLoading(true);
     try {
-      const { user: firebaseUser } = await createUserWithEmailAndPassword(auth, email, password);
+      console.log('📝 Registering user:', credentials.email);
+      const { user: firebaseUser } = await createUserWithEmailAndPassword(auth, credentials.email, credentials.password);
       
       // Update profile with display name
+      const fullName = `${credentials.firstName} ${credentials.lastName}`;
       await updateProfile(firebaseUser, {
-        displayName: name
+        displayName: fullName
       });
 
       // Create user document in Firestore
       const userData = {
         email: firebaseUser.email,
-        displayName: name,
+        displayName: fullName,
+        firstName: credentials.firstName,
+        lastName: credentials.lastName,
         hasPaid: false,
         subscription: {
           plan: 'free',
@@ -157,34 +210,69 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       // Update local user state
       const authUser: AuthUser = {
-        ...firebaseUser,
-        displayName: name,
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        displayName: fullName,
+        firstName: credentials.firstName,
+        lastName: credentials.lastName,
         hasPaid: false,
+        firestoreId: firebaseUser.uid,
         subscription: userData.subscription
       };
       setUser(authUser);
+      console.log('✅ Registration successful');
     } catch (error) {
       console.error('Registration error:', error);
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError('Erreur lors de l\'inscription');
+      }
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (credentials: LoginCredentials) => {
+    setError(null);
+    setLoading(true);
     try {
-      const { user: firebaseUser } = await signInWithEmailAndPassword(auth, email, password);
+      console.log('🔐 Logging in user:', credentials.email);
+      const { user: firebaseUser } = await signInWithEmailAndPassword(auth, credentials.email, credentials.password);
       await loadUserData(firebaseUser);
+      console.log('✅ Login successful');
     } catch (error) {
       console.error('Login error:', error);
+      if (error instanceof Error) {
+        if (error.message.includes('user-not-found')) {
+          setError('Aucun compte trouvé avec cet email');
+        } else if (error.message.includes('wrong-password')) {
+          setError('Mot de passe incorrect');
+        } else if (error.message.includes('invalid-email')) {
+          setError('Format d\'email invalide');
+        } else {
+          setError('Erreur de connexion');
+        }
+      } else {
+        setError('Erreur de connexion');
+      }
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 
   const logout = async () => {
     try {
+      console.log('🚪 Logging out user');
       await signOut(auth);
       setUser(null);
+      setError(null);
+      console.log('✅ Logout successful');
     } catch (error) {
       console.error('Logout error:', error);
+      setError('Erreur lors de la déconnexion');
       throw error;
     }
   };
@@ -193,6 +281,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (!user) return;
 
     try {
+      console.log(`💳 Updating payment status: ${hasPaid}, plan: ${plan}`);
       const maxCredits = getCreditsForPlan(plan);
       const updatedSubscription = {
         plan: plan as 'free' | 'starter' | 'pro',
@@ -216,6 +305,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log(`User payment status updated: ${hasPaid ? 'paid' : 'free'}, plan: ${plan}`);
     } catch (error) {
       console.error('Error updating payment status:', error);
+      setError('Erreur lors de la mise à jour du statut de paiement');
       throw error;
     }
   };
@@ -228,6 +318,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
 
     try {
+      console.log('💳 Decrementing credits');
       const newCreditsRemaining = user.subscription.creditsRemaining - 1;
       
       await updateDoc(doc(db, 'users', user.uid), {
@@ -243,19 +334,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       } : null);
 
+      console.log(`✅ Credits decremented: ${newCreditsRemaining} remaining`);
       return true;
     } catch (error) {
       console.error('Error decrementing credits:', error);
+      setError('Erreur lors de la déduction des crédits');
       return false;
     }
   };
 
   const value: AuthContextType = {
     user,
+    isAuthenticated: !!user,
     loading,
+    error,
     login,
     register,
     logout,
+    clearError,
     updateUserPaymentStatus,
     decrementCredits
   };

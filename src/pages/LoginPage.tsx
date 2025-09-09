@@ -17,7 +17,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onBack, onShowPricing }) => {
     lastName: ''
   });
 
-  const { login, register, isLoading, error, clearError } = useAuth();
+  const { login, register, loading, error, clearError } = useAuth();
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -208,10 +208,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onBack, onShowPricing }) => {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={loading}
                 className="w-full bg-white text-vinted-500 py-3 px-4 rounded-xl font-medium hover:bg-white/90 focus:outline-none focus:ring-2 focus:ring-white/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center mt-6 shadow-lg"
               >
-                {isLoading ? (
+                {loading ? (
                   <>
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                     {mode === 'login' ? 'Connexion...' : 'Création...'}
