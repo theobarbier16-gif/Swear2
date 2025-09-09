@@ -93,16 +93,6 @@ function App() {
       return;
     }
 
-    // Décrémenter les crédits AVANT le traitement pour éviter les abus
-    addDebugLog('💳 Déduction préventive d\'1 crédit avant traitement');
-    const creditDeducted = await decrementCredits();
-    if (!creditDeducted) {
-      addDebugLog('❌ Erreur déduction préventive');
-      setProcessingError('Erreur lors de la déduction des crédits.');
-      return;
-    }
-    addDebugLog('✅ Crédit déduit préventivement - UI mise à jour automatiquement');
-    
     setUploadedImage(imageUrl);
     setFileName(name);
     setClothingOptions(options);
@@ -110,6 +100,18 @@ function App() {
     setDebugLogs([]); // Reset les logs pour un nouveau traitement
     setCurrentStep('processing');
     setIsProcessing(true);
+    
+    // Décrémenter les crédits AVANT le traitement pour éviter les abus
+    addDebugLog('💳 Déduction préventive d\'1 crédit avant traitement');
+    const creditDeducted = await decrementCredits();
+    if (!creditDeducted) {
+      addDebugLog('❌ Erreur déduction préventive');
+      setProcessingError('Erreur lors de la déduction des crédits.');
+      setCurrentStep('upload');
+      setIsProcessing(false);
+      return;
+    }
+    addDebugLog('✅ Crédit déduit préventivement - UI mise à jour automatiquement');
     
     try {
       // Process image with N8N webhook
