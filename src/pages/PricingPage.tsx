@@ -93,7 +93,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       updateUserPaymentStatus(false);
       alert('Votre abonnement a été annulé. Vous êtes maintenant sur le plan gratuit.');
     }
-  ];
+  };
 
   const handleSelectPlan = (planId: string, planName: string) => {
     if (planId === 'free') {
@@ -280,17 +280,17 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
 
                   {/* CTA Button */}
                   <button
-                    onClick={() => handleSelectPlan(plan.name)}
-                    disabled={plan.current}
+                    onClick={() => handleSelectPlan(plan.id, plan.name)}
+                    disabled={isCurrent}
                     className={`
                       w-full py-3 px-6 rounded-xl font-medium text-white transition-all duration-200 shadow-lg
-                      ${plan.current 
+                      ${isCurrent 
                         ? 'bg-gray-500 cursor-not-allowed opacity-50' 
                         : plan.buttonColor + ' hover:scale-105 hover:shadow-xl'
                       }
                     `}
                   >
-                    {plan.current ? 'Plan actuel' : `Choisir ${plan.name}`}
+                    {getButtonText(plan.id, plan.name)}
                   </button>
                 </div>
               );
