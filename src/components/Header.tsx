@@ -38,10 +38,7 @@ const Header: React.FC<HeaderProps> = ({ onShowLogin, onShowPricing, onGoHome })
             <div className="p-2 bg-white rounded-xl shadow-lg">
               <Sparkles className="w-6 h-6 text-vinted-500" />
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-white">Swear</h1>
-              <p className="text-sm text-white/80">Photos Mode Professionnelles</p>
-            </div>
+            <h1 className="text-xl font-bold text-white">Swear</h1>
           </button>
           
           <div className="flex items-center space-x-6">
