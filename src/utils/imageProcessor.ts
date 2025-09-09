@@ -1,14 +1,6 @@
 // Utility for processing images with N8N webhook
 import { ClothingOptions } from '../App';
 
-// Configuration des proxies CORS
-const CORS_PROXIES = [
-  'https://api.allorigins.win/raw?url=',
-  'https://corsproxy.io/?',
-  'https://cors-anywhere.herokuapp.com/',
-  'https://proxy.cors.sh/',
-];
-
 // Variable globale pour la fonction d'ajout de logs
 let addDebugLogFunction: ((message: string) => void) | null = null;
 
@@ -190,158 +182,37 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
       mirror: options.mirror
     })}`);
     
-    // Essayer plusieurs URLs de fallback
-    const webhookUrls = [
-      'https://n8n-automatisation.fr/webhook-test/testvolt'
-    ];
+    // URL du webhook N8N
+    const webhookUrl = 'https://n8n-automatisation.fr/webhook-test/testvolt';
     
-    // Détecter si on est en production
-    const isProduction = window.location.hostname !== 'localhost' && 
-                        window.location.hostname !== '127.0.0.1' && 
-                        !window.location.hostname.includes('localhost');
+    debugLog(`📡 Envoi de la requête vers: ${webhookUrl}`);
     
-    debugLog(`🌍 Environnement: ${isProduction ? 'Production' : 'Développement'}`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      debugLog('⏰ Timeout - annulation de la requête');
+      controller.abort();
+    }, 30000);
     
-    let response;
-    const maxRetries = 2;
-    let lastError;
-    let successUrl = null;
+    debugLog(`📡 Envoi de la requête... (${payloadSizeMB} MB)`);
     
-    // En production, essayer d'abord avec les proxies CORS
-    const urlsToTry = [];
+    const startTime = Date.now();
     
-    if (isProduction) {
-      // En production, essayer avec proxies CORS d'abord
-      for (const proxy of CORS_PROXIES) {
-        urlsToTry.push(proxy + encodeURIComponent(webhookUrls[0]));
-      }
-      // Puis essayer direct
-      urlsToTry.push(...webhookUrls);
-    } else {
-      // En développement, essayer direct d'abord
-      urlsToTry.push(...webhookUrls);
-      // Puis avec proxies si nécessaire
-      for (const proxy of CORS_PROXIES) {
-        urlsToTry.push(proxy + encodeURIComponent(webhookUrls[0]));
-      }
-    }
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
     
-    debugLog(`🔗 URLs à tester: ${urlsToTry.length}`);
-    
-    // Essayer chaque URL
-    for (const webhookUrl of urlsToTry) {
-      const isProxied = CORS_PROXIES.some(proxy => webhookUrl.startsWith(proxy));
-      debugLog(`🌐 Test ${isProxied ? '(via proxy)' : '(direct)'}: ${webhookUrl}`);
-      
-      for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        try {
-          debugLog(`🔄 Tentative ${attempt + 1}/${maxRetries + 1} pour ${webhookUrl}`);
-          
-          const controller = new AbortController();
-          const timeoutDuration = 30000; // Augmenter à 30s pour laisser plus de temps
-          const timeoutId = setTimeout(() => {
-            debugLog('⏰ Timeout - annulation de la requête');
-            controller.abort();
-          }, timeoutDuration);
-          
-          debugLog(`📡 Envoi de la requête... (${payloadSizeMB} MB)`);
-          
-          // Log du début de l'envoi
-          const startTime = Date.now();
-          
-          // Headers optimisés pour mobile et CORS
-          const headers = {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json, */*',
-            'User-Agent': 'Swear-App/1.0'
-          };
-          
-          // Ajouter X-Requested-With seulement si pas de proxy
-          if (!isProxied) {
-            headers['X-Requested-With'] = 'XMLHttpRequest';
-          }
-          
-          debugLog(`📋 Headers envoyés: ${JSON.stringify(headers)}`);
-          debugLog(`📦 Taille payload: ${payloadSizeMB} MB`);
-          
-          response = await fetch(webhookUrl, {
-            method: 'POST',
-            headers: headers,
-            body: JSON.stringify(payload),
-            signal: controller.signal,
-          });
-          
-          clearTimeout(timeoutId);
-          const endTime = Date.now();
-          const duration = endTime - startTime;
-          debugLog(`✅ Requête envoyée en ${duration}ms`);
-          debugLog(`📡 Réponse reçue: ${response.status} ${response.statusText}`);
-          debugLog(`📡 Statut reçu: ${response.status} ${response.statusText}`);
-          
-          // Log des headers de réponse
-          const responseHeaders = {};
-          response.headers.forEach((value, key) => {
-            responseHeaders[key] = value;
-          });
-          debugLog(`📋 Headers réponse: ${JSON.stringify(responseHeaders)}`);
-          
-          // Vérifier si la réponse indique que le webhook a bien reçu les données
-          if (response.status >= 200 && response.status < 300) {
-            debugLog(`✅ Webhook a reçu les données avec succès (${response.status})`);
-          }
-          
-          successUrl = webhookUrl;
-          break; // Succès, sortir de la boucle
-          
-        } catch (error) {
-          lastError = error;
-          debugLog(`❌ Tentative ${attempt + 1} échouée pour ${webhookUrl}: ${error instanceof Error ? error.message : String(error)}`);
-          
-          // Log détaillé de l'erreur
-          if (error instanceof Error) {
-            debugLog(`🔍 Type d'erreur: ${error.name}`);
-            debugLog(`🔍 Message: ${error.message}`);
-            
-            // Diagnostics spécifiques
-            if (error.message.includes('Load failed')) {
-              debugLog('🌐 Erreur "Load failed" - Essai avec proxy CORS...');
-            } else if (error.message.includes('CORS')) {
-              debugLog('🚫 Erreur CORS - Tentative avec proxy...');
-            } else if (error.message.includes('NetworkError')) {
-              debugLog('📡 Erreur réseau - Vérifiez votre connexion');
-            } else if (error.message.includes('Failed to fetch')) {
-              debugLog('📡 Failed to fetch - Tentative avec méthode alternative...');
-            } else if (error.message.includes('blocked by CORS policy')) {
-              debugLog('🚫 Bloqué par CORS policy - Proxy requis...');
-            }
-          }
-          
-          if (attempt === maxRetries) {
-            debugLog(`❌ Toutes les tentatives ont échoué pour ${webhookUrl}`);
-          } else {
-            // Attendre avant de réessayer
-            const waitTime = 2000; // Temps d'attente fixe de 2s
-            debugLog(`⏳ Attente de ${waitTime/1000}s avant retry...`);
-            await new Promise(resolve => setTimeout(resolve, waitTime));
-          }
-        }
-      }
-      
-      // Si on a une réponse, sortir de la boucle des URLs
-      if (response && response.ok) {
-        const isProxied = CORS_PROXIES.some(proxy => successUrl?.startsWith(proxy));
-        debugLog(`✅ Succès ${isProxied ? '(via proxy)' : '(direct)'}: ${successUrl}`);
-        break;
-      }
-    }
-    
-    if (!response) {
-      debugLog('❌ Aucune réponse reçue de N8N après toutes les tentatives');
-      throw new Error(`Impossible de contacter le serveur N8N. Dernière erreur: ${lastError?.message || 'Inconnue'}`);
-    }
+    clearTimeout(timeoutId);
+    const endTime = Date.now();
+    const duration = endTime - startTime;
+    debugLog(`✅ Requête envoyée en ${duration}ms`);
+    debugLog(`📡 Réponse reçue: ${response.status} ${response.statusText}`);
 
-    debugLog(`📡 Analyse de la réponse: ${response.status} ${response.statusText}`);
-    
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Erreur inconnue');
       debugLog(`❌ Erreur serveur (${response.status}): ${errorText}`);
@@ -438,9 +309,6 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
     const imageUrl = URL.createObjectURL(imageBlob);
     debugLog('✅ URL de l\'image créée');
     
-    // Signaler que l'image a été reçue avec succès
-    debugLog('🎯 Image reçue avec succès - Crédit sera déduit');
-    
     return {
       success: true,
       imageUrl: imageUrl,
@@ -471,11 +339,6 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
       error: errorMessage,
     };
   }
-};
-
-// Fonction pour générer un ID de session unique
-const generateSessionId = (): string => {
-  return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 };
 
 const fileToBase64 = (file: File): Promise<string> => {
