@@ -103,6 +103,7 @@ function App() {
     
     // Décrémenter les crédits AVANT le traitement pour éviter les abus
     addDebugLog('💳 Déduction préventive d\'1 crédit avant traitement');
+    const { decrementCredits } = useAuth();
     const creditDeducted = await decrementCredits();
     if (!creditDeducted) {
       addDebugLog('❌ Erreur déduction préventive');
@@ -126,6 +127,7 @@ function App() {
         addDebugLog(`❌ Échec du traitement: ${result.error}`);
         
         // Rembourser le crédit en cas d'échec
+        const { refundCredits } = useAuth();
         const refunded = await refundCredits();
         if (refunded) {
           addDebugLog('💰 Crédit remboursé après échec - UI mise à jour automatiquement');
@@ -141,6 +143,7 @@ function App() {
       console.error('Error processing image:', error);
       
       // Rembourser le crédit en cas d'erreur critique
+      const { refundCredits } = useAuth();
       const refunded = await refundCredits();
       if (refunded) {
         addDebugLog('💰 Crédit remboursé après erreur critique - UI mise à jour automatiquement');
