@@ -106,12 +106,6 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
   debugLog('🚀 Début du traitement d\'image');
   
   try {
-    // Mode démo - générer une image de test immédiatement
-    if (import.meta.env.VITE_DEMO_MODE === 'true') {
-      debugLog('🎭 Mode démo activé - génération d\'une image de test');
-      return await simulateProcessing();
-    }
-    
     // Validation du fichier
     debugLog('🔍 Validation du fichier...');
     if (!file || file.size === 0) {
@@ -322,9 +316,12 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
     if (!response) {
       debugLog('❌ Aucune réponse reçue - passage en mode simulation');
       
-      // Passer automatiquement en mode simulation
-      debugLog('🎭 Activation du mode simulation automatique...');
-      return await simulateProcessing();
+      // Retourner une erreur au lieu de passer en mode simulation
+      debugLog('❌ Impossible de contacter le serveur');
+      return {
+        success: false,
+        error: 'Impossible de contacter le serveur de traitement. Vérifiez votre connexion internet.',
+      };
     }
 
     debugLog(`📡 Analyse de la réponse: ${response.status} ${response.statusText}`);
@@ -521,85 +518,4 @@ const fileToBase64 = (file: File): Promise<string> => {
       reject(new Error('Impossible d\'initier la lecture du fichier'));
     }
   });
-};
-
-// Fonction de simulation pour contourner les problèmes réseau
-const simulateProcessing = async (): Promise<WebhookResponse> => {
-  debugLog('🎭 Mode simulation - Création d\'une image de démonstration...');
-  
-  // Attendre un peu pour simuler le traitement (plus court)
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  // Créer une image de démonstration plus réaliste
-  const canvas = document.createElement('canvas');
-  canvas.width = 896;
-  canvas.height = 1152;
-  const ctx = canvas.getContext('2d');
-  
-  if (ctx) {
-    // Créer un dégradé de fond
-    const gradient = ctx.createLinearGradient(0, 0, 0, 1152);
-    gradient.addColorStop(0, '#f8fafc');
-    gradient.addColorStop(1, '#e2e8f0');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 896, 1152);
-    
-    // Simuler une silhouette de mannequin
-    ctx.fillStyle = '#cbd5e1';
-    ctx.beginPath();
-    ctx.ellipse(448, 300, 120, 160, 0, 0, 2 * Math.PI);
-    ctx.fill();
-    
-    // Corps
-    ctx.fillRect(368, 460, 160, 400);
-    
-    // Bras
-    ctx.fillRect(288, 480, 80, 200);
-    ctx.fillRect(528, 480, 80, 200);
-    
-    // Jambes
-    ctx.fillRect(388, 860, 60, 200);
-    ctx.fillRect(448, 860, 60, 200);
-    
-    // Texte de test
-    ctx.fillStyle = '#1e293b';
-    ctx.font = 'bold 32px Arial';
-    ctx.textAlign = 'center';
-    ctx.fillText('SWEAR DEMO', 448, 100);
-    
-    ctx.font = '24px Arial';
-    ctx.fillStyle = '#64748b';
-    ctx.fillText('Mode Démonstration', 448, 140);
-    ctx.fillText('Mannequin Virtuel', 448, 180);
-    
-    // Ajouter le logo Swear
-    ctx.fillStyle = '#09B1BA';
-    ctx.font = 'bold 28px Arial';
-    ctx.fillText('✨ Swear', 448, 1100);
-    
-    // Convertir en blob puis en URL
-    return new Promise((resolve) => {
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const imageUrl = URL.createObjectURL(blob);
-          debugLog('✅ Image de démonstration créée avec succès');
-          resolve({
-            success: true,
-            imageUrl: imageUrl,
-          });
-        } else {
-          resolve({
-            success: false,
-            error: 'Impossible de créer l\'image de démonstration',
-          });
-        }
-      }, 'image/png');
-    });
-  }
-  debugLog('🎯 Image blob reçue avec succès - Crédit sera déduit');
-  
-  return {
-    success: false,
-    error: 'Impossible de créer le canvas de démonstration',
-  };
 };
