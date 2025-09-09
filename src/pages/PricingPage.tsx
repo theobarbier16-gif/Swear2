@@ -103,22 +103,25 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
   // Vérification automatique du paiement au chargement de la page
   useEffect(() => {
     const checkPaymentStatus = async () => {
-      // Vérification stricte : seulement si l'utilisateur vient vraiment de Stripe
       const urlParams = new URLSearchParams(window.location.search);
       
-      // Vérifications strictes pour confirmer un paiement réussi
-      const hasStripeSuccess = (
-        // URL contient des paramètres de succès Stripe
+      // En mode test, être plus permissif pour les vérifications
+      const hasStripeSuccess = STRIPE_TEST_MODE ? 
+        // Mode test : vérifications allégées
         (urlParams.has('success') && urlParams.get('success') === 'true') ||
         urlParams.has('session_id') ||
-        // ET l'utilisateur vient bien de Stripe
-        (document.referrer.includes('stripe.com') || document.referrer.includes('checkout.stripe.com'))
-      );
+        // Ou si on a une interaction récente (pour les tests)
+        localStorage.getItem('lastStripeInteraction')
+        :
+        // Mode production : vérifications strictes
+        ((urlParams.has('success') && urlParams.get('success') === 'true') ||
+        urlParams.has('session_id')) &&
+        (document.referrer.includes('stripe.com') || document.referrer.includes('checkout.stripe.com'));
       
       // Vérification supplémentaire : timestamp récent
       const lastStripeInteraction = localStorage.getItem('lastStripeInteraction');
       const isRecentInteraction = lastStripeInteraction && 
-        (Date.now() - parseInt(lastStripeInteraction)) < 10 * 60 * 1000; // 10 minutes max
+        (Date.now() - parseInt(lastStripeInteraction)) < (STRIPE_TEST_MODE ? 30 * 60 * 1000 : 10 * 60 * 1000); // 30 min en test, 10 min en prod
       
       if (hasStripeSuccess && user && isRecentInteraction) {
         console.log('🔍 Paiement Stripe détecté - Vérification en cours...');
@@ -134,16 +137,16 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
         if (STRIPE_TEST_MODE) {
           console.log('🧪 Mode test - Vérification simulée du paiement Stripe');
           
-          // Simuler un délai de vérification plus réaliste
+          // Simuler un délai de vérification
           setTimeout(async () => {
             try {
               // Double vérification du plan
               let planType = selectedPlan;
               
-              // Vérification croisée avec l'URL
-              if ((window.location.href.includes('pro') || urlParams.get('plan') === 'pro') && selectedPlan === 'pro') {
+              // Vérification croisée avec l'URL (plus permissive en test)
+              if (selectedPlan === 'pro') {
                 planType = 'pro';
-              } else if ((window.location.href.includes('starter') || urlParams.get('plan') === 'starter') && selectedPlan === 'starter') {
+              } else if (selectedPlan === 'starter') {
                 planType = 'starter';
               } else {
                 console.log('❌ Incohérence entre plan sélectionné et URL, annulation');
@@ -169,7 +172,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
             } catch (error) {
               console.error('❌ Erreur lors de l\'activation du plan:', error);
             }
-          }, 3000); // Délai plus long pour simulation réaliste
+          }, 1500); // Délai réduit en mode test
         } else {
           // En mode production, ici on ferait un appel API pour vérifier le paiement
           console.log('🔍 Mode production - Vérification API requise');
@@ -198,18 +201,21 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       
       const timeSinceInteraction = Date.now() - parseInt(lastStripeInteraction);
       
-      // Si plus de 10 minutes, arrêter la vérification
-      if (timeSinceInteraction > 10 * 60 * 1000) {
+      // Timeout différent selon le mode
+      const timeoutDuration = STRIPE_TEST_MODE ? 30 * 60 * 1000 : 10 * 60 * 1000;
+      if (timeSinceInteraction > timeoutDuration) {
         console.log('⏰ Timeout de vérification atteint, nettoyage');
         localStorage.removeItem('lastStripeInteraction');
         localStorage.removeItem('selectedPlan');
         return;
       }
       
-      // Vérifier seulement si moins de 5 minutes ET qu'on a des paramètres de succès
-      if (timeSinceInteraction < 5 * 60 * 1000) {
+      // Vérifier seulement si récent ET qu'on a des paramètres de succès
+      const checkDuration = STRIPE_TEST_MODE ? 15 * 60 * 1000 : 5 * 60 * 1000;
+      if (timeSinceInteraction < checkDuration) {
         const urlParams = new URLSearchParams(window.location.search);
-        const hasStripeSuccess = urlParams.has('success') || urlParams.has('session_id');
+        const hasStripeSuccess = urlParams.has('success') || urlParams.has('session_id') || 
+          (STRIPE_TEST_MODE && localStorage.getItem('selectedPlan'));
         
         if (hasStripeSuccess) {
           console.log('🔄 Vérification périodique - Paramètres Stripe détectés');
@@ -231,7 +237,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
           }
         }
       }
-    }, 15000); // Vérifier toutes les 15 secondes (moins fréquent)
+    }, STRIPE_TEST_MODE ? 5000 : 15000); // Plus fréquent en mode test
 
     return () => clearInterval(interval);
   }, [user, updateUserPaymentStatus]);
@@ -678,10 +684,20 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
                 STRIPE_TEST_MODE ? 'text-blue-300' : 'text-green-300'
               }`}>
                 {STRIPE_TEST_MODE 
-                  ? 'Mode test activé. Utilisez la carte 5454 5454 5454 5454 pour tester les paiements. Les plans sont activés automatiquement après paiement réussi.'
+                  ? 'Mode test activé. Utilisez la carte 5454 5454 5454 5454 pour tester les paiements. Après paiement, revenez sur cette page - votre plan sera activé automatiquement en 1-2 secondes.'
                   : 'Seuls les paiements Stripe validés activent automatiquement votre plan. Aucune activation manuelle n\'est possible pour garantir la sécurité.'
                 }
               </p>
+              {STRIPE_TEST_MODE && (
+                <div className="mt-3 p-3 bg-blue-500/20 rounded-lg">
+                  <p className="text-xs text-blue-200">
+                    💡 <strong>Instructions test :</strong><br/>
+                    1. Cliquez sur un plan → Redirection Stripe<br/>
+                    2. Payez avec 5454 5454 5454 5454<br/>
+                    3. Revenez sur cette page → Plan activé !
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
