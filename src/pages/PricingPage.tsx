@@ -14,12 +14,13 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
   // Déterminer le plan actuel de l'utilisateur
   const getCurrentPlan = () => {
     if (!user) return 'free';
-    if (!user.hasPaid) return 'free';
     
-    const credits = user.subscription?.creditsRemaining || 0;
-    if (credits <= 25) return 'starter';
-    if (credits <= 150) return 'pro';
-    return 'starter'; // fallback
+    // Utiliser directement le plan depuis Firebase
+    const plan = user.subscription?.plan || 'free';
+    
+    // Mapper les noms de plans
+    if (plan === 'premium') return 'starter'; // Compatibilité ancien système
+    return plan; // 'free', 'starter', 'pro'
   };
 
   const currentPlan = getCurrentPlan();
@@ -232,7 +233,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
               <div className="mt-6 inline-flex items-center bg-white/10 backdrop-blur-lg rounded-full px-6 py-3 border border-white/20">
                 <div className="w-3 h-3 bg-green-400 rounded-full mr-3 animate-pulse"></div>
                 <span className="text-white font-medium">
-                  Plan actuel : {currentPlan === 'free' ? 'Gratuit' : currentPlan === 'starter' ? 'Starter' : 'Pro'}
+                  Plan actuel : {currentPlan === 'free' ? 'Free Plan' : currentPlan === 'starter' ? 'Starter' : 'Pro'}
                   {user.subscription?.creditsRemaining !== undefined && (
                     <span className="ml-2 text-white/80">
                       • {user.subscription.creditsRemaining} crédits restants
@@ -275,7 +276,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
                   {isCurrent && (
                     <div className="absolute -top-4 right-4">
                       <div className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg">
-                        Plan actuel
+                        ✅ Plan actuel
                       </div>
                     </div>
                   )}
