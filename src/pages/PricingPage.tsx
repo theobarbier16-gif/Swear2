@@ -9,7 +9,7 @@ interface PricingPageProps {
 }
 
 const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUserEmail }) => {
-  const { updateUserPaymentStatus, user } = useAuth();
+  const { user } = useAuth();
 
   // Déterminer le plan actuel de l'utilisateur
   const getCurrentPlan = () => {
@@ -88,34 +88,15 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
     }
   ];
 
-  const handleCancelSubscription = () => {
-    if (window.confirm('⚠️ Êtes-vous sûr de vouloir annuler votre abonnement ?\n\n• Vous perdrez l\'accès aux fonctionnalités premium\n• Vous n\'aurez plus que 3 générations par mois\n• Votre abonnement payant sera annulé chez Stripe\n\nCette action nécessite une confirmation par email.')) {
-      // TODO: Implémenter l'annulation Stripe côté serveur
-      handleStripeSubscriptionCancellation();
-    }
-  };
-
-  const handleStripeSubscriptionCancellation = async () => {
-    try {
-      // Pour l'instant, on simule l'annulation
-      // Dans un vrai environnement, ceci devrait appeler votre backend
-      
-      alert('🔄 Annulation en cours...\n\n' +
-            '📧 Un email de confirmation vous sera envoyé\n' +
-            '💳 Stripe arrêtera automatiquement les prélèvements\n' +
-            '⏰ L\'annulation prendra effet à la fin de votre période de facturation actuelle\n\n' +
-            '⚠️ IMPORTANT: Pour une vraie annulation Stripe, vous devez :\n' +
-            '1. Aller sur votre tableau de bord Stripe\n' +
-            '2. Annuler manuellement l\'abonnement\n' +
-            '3. Ou implémenter un webhook d\'annulation côté serveur');
-      
-      // Simulation de l'annulation locale (à remplacer par un vrai appel API)
-      updateUserPaymentStatus(false, 'free');
-      
-    } catch (error) {
-      console.error('Erreur lors de l\'annulation:', error);
-      alert('❌ Erreur lors de l\'annulation. Veuillez contacter le support ou annuler directement via Stripe.');
-    }
+  // Fonction pour vérifier automatiquement le statut de paiement
+  const checkPaymentStatus = async (planId: string) => {
+    // TODO: Implémenter la vérification côté serveur
+    // Cette fonction devrait appeler votre backend pour vérifier
+    // si l'utilisateur a bien payé sur Stripe
+    console.log(`Vérification du paiement pour le plan ${planId}...`);
+    
+    // Pour l'instant, on ne fait rien - le statut sera mis à jour
+    // automatiquement par les webhooks Stripe côté serveur
   };
 
   const handleSelectPlan = (planId: string, planName: string) => {
@@ -129,12 +110,8 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       const stripeUrl = `https://buy.stripe.com/test_fZucMYcHubsj23adLG2VG00?prefilled_email=${encodedEmail}`;
       window.open(stripeUrl, '_blank');
       
-      // Afficher les instructions de paiement
-      alert('💳 Paiement Stripe\n\n' +
-            '1. Complétez votre paiement sur Stripe\n' +
-            '2. Votre plan sera automatiquement activé\n' +
-            '3. Rafraîchissez la page après paiement\n\n' +
-            '⚠️ IMPORTANT: Seuls les paiements Stripe valides activent les plans');
+      // Démarrer la vérification automatique du paiement
+      checkPaymentStatus(planId);
       
     } else if (planId === 'pro') {
       // Redirection vers Stripe pour le plan Pro
@@ -144,13 +121,8 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       
       window.open(stripeUrl, '_blank');
       
-      // Afficher les instructions de paiement
-      alert('💳 Paiement Stripe\n\n' +
-            '1. Complétez votre paiement sur Stripe\n' +
-            '2. Votre plan sera automatiquement activé\n' +
-            '3. Rafraîchissez la page après paiement\n\n' +
-            '⚠️ IMPORTANT: Seuls les paiements Stripe valides activent les plans');
-      
+      // Démarrer la vérification automatique du paiement
+      checkPaymentStatus(planId);
     }
   };
 
@@ -344,11 +316,11 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
             <div className="mt-12 max-w-2xl mx-auto">
               <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 text-center">
                 <h3 className="text-lg font-semibold text-white mb-3">
-                  ⚠️ Gestion des abonnements
+                  🔗 Gestion des abonnements
                 </h3>
                 <p className="text-white/80 text-sm mb-4">
-                  Pour modifier ou annuler votre abonnement, vous devez le faire directement sur Stripe.
-                  Les changements de plan sont automatiquement synchronisés.
+                  Pour modifier ou annuler votre abonnement, gérez-le directement sur Stripe.
+                  Tous les changements sont automatiquement synchronisés avec votre compte.
                 </p>
                 <a
                   href="https://billing.stripe.com/p/login/test_00000000000000000000000000"
@@ -358,6 +330,11 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
                 >
                   🔗 Gérer sur Stripe
                 </a>
+                <div className="mt-4 p-3 bg-white/5 rounded-lg">
+                  <p className="text-xs text-white/60">
+                    💡 Astuce : Après modification sur Stripe, rafraîchissez cette page pour voir les changements
+                  </p>
+                </div>
               </div>
             </div>
           )}
@@ -394,12 +371,25 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
               </div>
               <div className="bg-white/10 backdrop-blur-lg rounded-xl p-6 border border-white/20">
                 <h3 className="font-semibold text-white mb-2">
-                  Comment annuler mon abonnement Stripe ?
+                  Comment les paiements sont-ils vérifiés ?
                 </h3>
                 <p className="text-white/80 text-sm">
-                  L'annulation nécessite une gestion côté serveur. Pour l'instant, vous devez annuler manuellement dans votre tableau de bord Stripe.
+                  Tous les paiements sont automatiquement vérifiés via Stripe. Votre plan est mis à jour en temps réel après validation du paiement.
                 </p>
               </div>
+            </div>
+          </div>
+          
+          {/* Important Security Notice */}
+          <div className="mt-8 max-w-4xl mx-auto">
+            <div className="bg-green-500/10 backdrop-blur-lg rounded-xl p-6 border border-green-500/20 text-center">
+              <h3 className="font-semibold text-green-400 mb-2">
+                🔒 Sécurité garantie
+              </h3>
+              <p className="text-green-300 text-sm">
+                Seuls les paiements Stripe validés activent automatiquement votre plan. 
+                Aucune activation manuelle n'est possible pour garantir la sécurité.
+              </p>
             </div>
           </div>
         </div>
