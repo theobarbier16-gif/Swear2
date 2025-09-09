@@ -246,13 +246,6 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
                     Souscrire
                   </button>
                 )}
-                <button
-                  onClick={() => window.location.reload()}
-                  className="text-xs text-white/60 hover:text-white/80 transition-colors px-2 py-1"
-                  title="Rafraîchir les données"
-                >
-                  🔄 Actualiser
-                </button>
               </div>
             </div>
           </div>

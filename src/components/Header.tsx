@@ -148,12 +148,6 @@ const Header: React.FC<HeaderProps> = ({ onShowLogin, onShowPricing, onGoHome })
                     )}
                   </div>
                   <button 
-                    onClick={() => window.location.reload()}
-                    className="flex items-center text-white/80 hover:text-white transition-colors duration-200 bg-white/10 backdrop-blur-lg px-4 py-2 rounded-lg border border-white/20 hover:bg-white/20 text-left w-full"
-                  >
-                    🔄 Rafraîchir les données
-                  </button>
-                  <button 
                     onClick={handleLogout}
                     className="flex items-center text-white/80 hover:text-white transition-colors duration-200 bg-white/10 backdrop-blur-lg px-4 py-2 rounded-lg border border-white/20 hover:bg-white/20 text-left w-full"
                   >

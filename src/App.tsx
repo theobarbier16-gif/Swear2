@@ -95,16 +95,13 @@ function App() {
 
     // Décrémenter les crédits AVANT le traitement pour éviter les abus
     addDebugLog('💳 Déduction préventive d\'1 crédit avant traitement');
-    if (user && user.firestoreId) {
-      try {
-        await decrementUserCredits(user.firestoreId, 1);
-        addDebugLog('✅ Crédit déduit préventivement');
-      } catch (error) {
-        addDebugLog(`❌ Erreur déduction préventive: ${error}`);
-        setProcessingError('Erreur lors de la déduction des crédits.');
-        return;
-      }
+    const creditDeducted = await decrementCredits();
+    if (!creditDeducted) {
+      addDebugLog('❌ Erreur déduction préventive');
+      setProcessingError('Erreur lors de la déduction des crédits.');
+      return;
     }
+    addDebugLog('✅ Crédit déduit préventivement - UI mise à jour automatiquement');
     
     setUploadedImage(imageUrl);
     setFileName(name);
@@ -127,13 +124,11 @@ function App() {
         addDebugLog(`❌ Échec du traitement: ${result.error}`);
         
         // Rembourser le crédit en cas d'échec
-        if (user && user.firestoreId) {
-          try {
-            await decrementUserCredits(user.firestoreId, -1); // Remboursement
-            addDebugLog('💰 Crédit remboursé après échec');
-          } catch (error) {
-            addDebugLog(`⚠️ Erreur remboursement: ${error}`);
-          }
+        const refunded = await refundCredits();
+        if (refunded) {
+          addDebugLog('💰 Crédit remboursé après échec - UI mise à jour automatiquement');
+        } else {
+          addDebugLog('⚠️ Erreur remboursement');
         }
         
         setProcessingError(result.error || 'Erreur lors du traitement de l\'image');
@@ -144,13 +139,11 @@ function App() {
       console.error('Error processing image:', error);
       
       // Rembourser le crédit en cas d'erreur critique
-      if (user && user.firestoreId) {
-        try {
-          await decrementUserCredits(user.firestoreId, -1); // Remboursement
-          addDebugLog('💰 Crédit remboursé après erreur critique');
-        } catch (error) {
-          addDebugLog(`⚠️ Erreur remboursement critique: ${error}`);
-        }
+      const refunded = await refundCredits();
+      if (refunded) {
+        addDebugLog('💰 Crédit remboursé après erreur critique - UI mise à jour automatiquement');
+      } else {
+        addDebugLog('⚠️ Erreur remboursement critique');
       }
       
       setProcessingError('Erreur de connexion au service de traitement');
