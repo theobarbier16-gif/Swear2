@@ -433,11 +433,15 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
               STRIPE_TEST_MODE 
                 ? 'bg-blue-500/10 border-blue-500/20' 
                 : 'bg-green-500/10 border-green-500/20'
+            }`}>
+              <h3 className={`font-semibold mb-2 ${
                 STRIPE_TEST_MODE ? 'text-blue-400' : 'text-green-400'
-              <h3 className="font-semibold text-green-400 mb-2">
+              }`}>
                 {STRIPE_TEST_MODE ? '🧪 Mode Test Stripe' : '🔒 Sécurité garantie'}
               </h3>
-              <p className="text-green-300 text-sm">
+              <p className={`text-sm ${
+                STRIPE_TEST_MODE ? 'text-blue-300' : 'text-green-300'
+              }`}>
                 {STRIPE_TEST_MODE 
                   ? 'Mode test activé. Les paiements sont simulés automatiquement après redirection Stripe. En production, seuls les vrais paiements activent les plans.'
                   : 'Seuls les paiements Stripe validés activent automatiquement votre plan. Aucune activation manuelle n\'est possible pour garantir la sécurité.'
