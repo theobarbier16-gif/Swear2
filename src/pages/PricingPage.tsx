@@ -109,7 +109,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
             '3. Ou implémenter un webhook d\'annulation côté serveur');
       
       // Simulation de l'annulation locale (à remplacer par un vrai appel API)
-      updateUserPaymentStatus(false);
+      updateUserPaymentStatus(false, 'free');
       
     } catch (error) {
       console.error('Erreur lors de l\'annulation:', error);
@@ -123,7 +123,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       if (user && user.hasPaid) {
         // Confirmation pour la rétrogradation vers gratuit
         if (window.confirm('⚠️ Êtes-vous sûr de vouloir passer au plan gratuit ?\n\n• Vous perdrez l\'accès aux fonctionnalités premium\n• Vous n\'aurez plus que 3 générations par mois\n• Votre abonnement payant sera annulé\n\nCette action est immédiate et gratuite.')) {
-          updateUserPaymentStatus(false);
+          updateUserPaymentStatus(false, 'free');
           alert('✅ Vous êtes maintenant sur le plan gratuit. Aucun paiement ne sera prélevé.');
           onBack();
         }

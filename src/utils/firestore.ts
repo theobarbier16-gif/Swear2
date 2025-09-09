@@ -165,26 +165,52 @@ export const getOrCreateUserDocument = async (
 export const updateUserPaymentStatus = async (
   firebaseUserId: string,
   hasPaid: boolean,
-  creditsToAdd: number = 25,
-  planType: 'free' | 'starter' | 'pro' = 'starter'
+  planType: 'free' | 'starter' | 'pro' = 'free',
+  creditsToAdd?: number
 ): Promise<void> => {
   const userDocRef = doc(db, USERS_COLLECTION, firebaseUserId);
   
   try {
-    console.log('💳 Mise à jour du statut de paiement:', { firebaseUserId, hasPaid, creditsToAdd, planType });
+    // Déterminer les crédits selon le plan
+    let credits = creditsToAdd;
+    if (credits === undefined) {
+      switch (planType) {
+        case 'free':
+          credits = 3;
+          break;
+        case 'starter':
+          credits = 25;
+          break;
+        case 'pro':
+          credits = 150;
+          break;
+        default:
+          credits = 0;
+      }
+    }
+    
+    // hasPaid est true seulement pour les plans payants
+    const isPaidPlan = planType !== 'free';
+    
+    console.log('💳 Mise à jour du statut de paiement:', { 
+      firebaseUserId, 
+      hasPaid: isPaidPlan, 
+      creditsToAdd: credits, 
+      planType 
+    });
+    
     const updateData = {
-      hasPaid: hasPaid,
+      hasPaid: isPaidPlan,
       subscription: {
-        plan: hasPaid ? planType : 'free',
-        creditsRemaining: hasPaid ? creditsToAdd : 0,
+        plan: planType,
+        creditsRemaining: credits,
         lastUpdated: serverTimestamp(),
       },
       updatedAt: serverTimestamp(),
     };
     
     await updateDoc(userDocRef, updateData);
-    console.log('✅ Statut de paiement mis à jour dans Firestore');
-    console.log('Statut de paiement mis à jour dans Firestore');
+    console.log('✅ Statut de paiement mis à jour dans Firestore:', updateData);
   } catch (error) {
     console.error('Erreur lors de la mise à jour du statut de paiement:', error);
     throw error;

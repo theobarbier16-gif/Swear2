@@ -38,5 +38,5 @@ export interface AuthContextType extends AuthState {
   register: (credentials: RegisterCredentials) => Promise<void>;
   logout: () => void;
   clearError: () => void;
-  updateUserPaymentStatus: (hasPaid: boolean) => void;
+  updateUserPaymentStatus: (hasPaid: boolean, planType?: 'free' | 'starter' | 'pro') => void;
 }

@@ -259,12 +259,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dispatch({ type: 'CLEAR_ERROR' });
   };
 
-  const updateUserPaymentStatus = (hasPaid: boolean) => {
+  const updateUserPaymentStatus = (hasPaid: boolean, planType: 'free' | 'starter' | 'pro' = 'free') => {
     if (state.user && state.user.firestoreId) {
+      // Déterminer les crédits selon le plan
+      let creditsToAdd = 0;
+      switch (planType) {
+        case 'free':
+          creditsToAdd = 3;
+          break;
+        case 'starter':
+          creditsToAdd = 25;
+          break;
+        case 'pro':
+          creditsToAdd = 150;
+          break;
+      }
+      
+      // hasPaid est automatiquement false pour le plan free
+      const actualHasPaid = planType !== 'free';
+      
       // Mettre à jour Firestore
-      updateFirestorePaymentStatus(state.user.firestoreId, hasPaid, 25, 'starter')
+      updateFirestorePaymentStatus(state.user.firestoreId, actualHasPaid, planType, creditsToAdd)
         .then(() => {
-          console.log('Statut de paiement mis à jour avec succès');
+          console.log(`Statut de paiement mis à jour avec succès: ${planType} (hasPaid: ${actualHasPaid})`);
         })
         .catch((error) => {
           console.error('Erreur lors de la mise à jour du statut de paiement:', error);
@@ -273,11 +290,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Mettre à jour l'état local immédiatement pour une meilleure UX
       const updatedUser = {
         ...state.user,
-        hasPaid: hasPaid,
+        hasPaid: actualHasPaid,
         subscription: {
           ...state.user.subscription,
-          plan: hasPaid ? 'starter' : 'free',
-          creditsRemaining: hasPaid ? 25 : 0,
+          plan: planType,
+          creditsRemaining: creditsToAdd,
           lastUpdated: new Date().toISOString(),
         }
       };
