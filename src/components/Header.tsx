@@ -6,9 +6,10 @@ import UserMenu from './auth/UserMenu';
 interface HeaderProps {
   onShowLogin?: () => void;
   onShowPricing?: () => void;
+  onGoHome?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onShowLogin, onShowPricing }) => {
+const Header: React.FC<HeaderProps> = ({ onShowLogin, onShowPricing, onGoHome }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { isAuthenticated, user, logout } = useAuth();
 
@@ -17,11 +18,23 @@ const Header: React.FC<HeaderProps> = ({ onShowLogin, onShowPricing }) => {
     setIsMobileMenuOpen(false);
   };
 
+  const handleLogoClick = () => {
+    if (onGoHome) {
+      onGoHome();
+    } else {
+      // Fallback: refresh the page
+      window.location.reload();
+    }
+  };
+
   return (
     <header className="bg-white/10 backdrop-blur-lg border-b border-white/20 sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4 max-w-6xl">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+          <button 
+            onClick={handleLogoClick}
+            className="flex items-center space-x-3 hover:opacity-80 transition-opacity duration-200 cursor-pointer"
+          >
             <div className="p-2 bg-white rounded-xl shadow-lg">
               <Sparkles className="w-6 h-6 text-vinted-500" />
             </div>
@@ -29,7 +42,7 @@ const Header: React.FC<HeaderProps> = ({ onShowLogin, onShowPricing }) => {
               <h1 className="text-xl font-bold text-white">Swear</h1>
               <p className="text-sm text-white/80">Photos Mode Professionnelles</p>
             </div>
-          </div>
+          </button>
           
           <div className="flex items-center space-x-6">
             {/* Desktop Navigation */}

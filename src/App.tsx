@@ -164,10 +164,23 @@ function App() {
     setCurrentView('main');
   };
 
+  const handleGoHome = () => {
+    // Si on est déjà sur la page principale, on reset tout
+    if (currentView === 'main') {
+      handleStartOver();
+    } else {
+      // Sinon on retourne à la page principale
+      setCurrentView('main');
+    }
+  };
+
   // Si on est sur la page de connexion, l'afficher
   if (currentView === 'login') {
     return (
-      <LoginPage onBack={handleBackToMain} onShowPricing={handleShowPricingWithEmail} />
+      <LoginPage 
+        onBack={handleBackToMain} 
+        onShowPricing={handleShowPricingWithEmail}
+      />
     );
   }
 
@@ -194,7 +207,11 @@ function App() {
           <div className="absolute inset-0 bg-gradient-to-t from-vinted-600/20 to-transparent"></div>
         </div>
         
-        <Header onShowLogin={handleShowLogin} onShowPricing={handleShowPricing} />
+        <Header 
+          onShowLogin={handleShowLogin} 
+          onShowPricing={handleShowPricing}
+          onGoHome={handleGoHome}
+        />
         
         {/* Debug Panel - Bouton flottant */}
         <div className="fixed bottom-4 right-4 z-50">
