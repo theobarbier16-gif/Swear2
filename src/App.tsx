@@ -92,6 +92,19 @@ function App() {
       setCurrentView('pricing');
       return;
     }
+
+    // Décrémenter les crédits AVANT le traitement pour éviter les abus
+    addDebugLog('💳 Déduction préventive d\'1 crédit avant traitement');
+    if (user && user.firestoreId) {
+      try {
+        await decrementUserCredits(user.firestoreId, 1);
+        addDebugLog('✅ Crédit déduit préventivement');
+      } catch (error) {
+        addDebugLog(`❌ Erreur déduction préventive: ${error}`);
+        setProcessingError('Erreur lors de la déduction des crédits.');
+        return;
+      }
+    }
     
     setUploadedImage(imageUrl);
     setFileName(name);
@@ -108,30 +121,38 @@ function App() {
       
       if (result.success && result.imageUrl) {
         addDebugLog('✅ Traitement réussi !');
-        // Mettre à jour l'image générée AVANT de décrémenter les crédits
         setGeneratedImage(result.imageUrl);
-        
-        // Décrémenter les crédits de l'utilisateur après réception réussie
-        if (user && user.firestoreId) {
-          try {
-            await decrementUserCredits(user.firestoreId, 1);
-            addDebugLog('💳 Crédit déduit avec succès');
-            
-          } catch (error) {
-            addDebugLog(`⚠️ Erreur lors de la déduction du crédit: ${error}`);
-          }
-        }
-        
-        // Passer à l'étape des résultats APRÈS avoir mis à jour l'image
         setCurrentStep('results');
       } else {
         addDebugLog(`❌ Échec du traitement: ${result.error}`);
+        
+        // Rembourser le crédit en cas d'échec
+        if (user && user.firestoreId) {
+          try {
+            await decrementUserCredits(user.firestoreId, -1); // Remboursement
+            addDebugLog('💰 Crédit remboursé après échec');
+          } catch (error) {
+            addDebugLog(`⚠️ Erreur remboursement: ${error}`);
+          }
+        }
+        
         setProcessingError(result.error || 'Erreur lors du traitement de l\'image');
         setCurrentStep('upload');
       }
     } catch (error) {
       addDebugLog(`💥 Erreur critique: ${error}`);
       console.error('Error processing image:', error);
+      
+      // Rembourser le crédit en cas d'erreur critique
+      if (user && user.firestoreId) {
+        try {
+          await decrementUserCredits(user.firestoreId, -1); // Remboursement
+          addDebugLog('💰 Crédit remboursé après erreur critique');
+        } catch (error) {
+          addDebugLog(`⚠️ Erreur remboursement critique: ${error}`);
+        }
+      }
+      
       setProcessingError('Erreur de connexion au service de traitement');
       setCurrentStep('upload');
     } finally {
