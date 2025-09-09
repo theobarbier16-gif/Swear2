@@ -428,8 +428,8 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
                 ? 'Traitement...' 
                 : !isAuthenticated 
                 ? 'Se connecter pour commencer'
-                : !user?.hasPaid
-                ? 'Abonnement requis'
+                : (user?.subscription?.creditsRemaining || 0) <= 0
+                ? 'Plus de crédits'
                 : 'Choisir un Fichier'
               }
             </button>
