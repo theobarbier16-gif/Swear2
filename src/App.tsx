@@ -81,6 +81,18 @@ function App() {
         addDebugLog('✅ Traitement réussi !');
         setGeneratedImage(result.imageUrl);
         setCurrentStep('results');
+        
+        // Décrémenter les crédits uniquement en cas de succès
+        try {
+          const creditDeducted = await decrementCredits();
+          if (creditDeducted) {
+            addDebugLog('💳 1 crédit déduit avec succès');
+          } else {
+            addDebugLog('⚠️ Impossible de déduire le crédit');
+          }
+        } catch (error) {
+          addDebugLog(`❌ Erreur déduction crédit: ${error}`);
+        }
       } else {
         addDebugLog(`❌ Échec du traitement: ${result.error}`);
         setProcessingError(result.error || 'Erreur lors du traitement de l\'image');
