@@ -62,7 +62,7 @@ const Header: React.FC<HeaderProps> = ({ onShowLogin, onShowPricing, onGoHome })
                     Bonjour, {user?.firstName}
                     {user?.hasPaid && (
                       <span className="ml-2 text-xs bg-green-500 text-white px-2 py-1 rounded-full">
-                        {user.subscription?.plan === 'pro' ? 'Pro' : 'Premium'}
+                        {user.subscription?.plan === 'pro' ? 'Pro' : user.subscription?.plan === 'starter' ? 'Starter' : 'Premium'}
                       </span>
                     )}
                   </span>
@@ -73,6 +73,11 @@ const Header: React.FC<HeaderProps> = ({ onShowLogin, onShowPricing, onGoHome })
                   >
                     🔄
                   </button>
+                  {user?.hasPaid && (
+                    <div className="text-xs text-white/60">
+                      {user.subscription?.creditsRemaining || 0} crédits
+                    </div>
+                  )}
                   <button
                     onClick={handleLogout}
                     className="flex items-center hover:text-white transition-colors duration-200 bg-white/10 backdrop-blur-lg px-3 py-2 rounded-lg border border-white/20 hover:bg-white/20"
@@ -133,8 +138,13 @@ const Header: React.FC<HeaderProps> = ({ onShowLogin, onShowPricing, onGoHome })
                     Bonjour, {user?.firstName} !
                     {user?.hasPaid && (
                       <span className="ml-2 text-xs bg-green-500 text-white px-2 py-1 rounded-full">
-                        {user.subscription?.plan === 'pro' ? 'Pro' : 'Premium'}
+                        {user.subscription?.plan === 'pro' ? 'Pro' : user.subscription?.plan === 'starter' ? 'Starter' : 'Premium'}
                       </span>
+                    )}
+                    {user?.hasPaid && (
+                      <div className="text-xs text-white/60 mt-1">
+                        {user.subscription?.creditsRemaining || 0} crédits restants
+                      </div>
                     )}
                   </div>
                   <button 

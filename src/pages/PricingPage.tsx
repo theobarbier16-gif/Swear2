@@ -145,21 +145,8 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       const stripeUrl = `https://buy.stripe.com/test_fZucMYcHubsj23adLG2VG00?prefilled_email=${encodedEmail}`;
       window.open(stripeUrl, '_blank');
       
-      alert('💳 Redirection vers Stripe Starter...\n\n' +
-            '⚠️ IMPORTANT après paiement :\n' +
-            '1. Revenez sur cette page\n' +
-            '2. Cliquez sur "Mettre à jour vers Starter" ci-dessous\n' +
-            '3. Ou rafraîchissez la page (F5)\n\n' +
-            '💡 Si le problème persiste, contactez le support.');
-      
-      // Ajouter un bouton pour forcer la mise à jour vers Starter
-      setTimeout(() => {
-        if (window.confirm('✅ Paiement Stripe terminé ?\n\nCliquez OK pour activer votre plan Starter maintenant.')) {
-          updateUserPaymentStatus(true, 'starter');
-          alert('🎉 Plan Starter activé ! Vous avez maintenant 25 crédits.');
-          window.location.reload();
-        }
-      }, 3000);
+      // Nouvelle approche avec vérification automatique
+      showPaymentInstructions('starter', stripeUrl);
       
     } else if (planId === 'pro') {
       // Rediriger vers Stripe Pro avec l'email de l'utilisateur
@@ -169,26 +156,135 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       
       window.open(stripeUrl, '_blank');
       
-      alert('💳 Redirection vers Stripe Pro...\n\n' +
-            '⚠️ IMPORTANT après paiement :\n' +
-            '1. Revenez sur cette page\n' +
-            '2. Cliquez sur "Mettre à jour vers Starter" ci-dessous\n' +
-            '3. Ou rafraîchissez la page (F5)\n\n' +
-            '💡 Si le problème persiste, contactez le support.');
-      
-      // Ajouter un bouton pour forcer la mise à jour vers Starter
-      setTimeout(() => {
-        if (window.confirm('✅ Paiement Stripe terminé ?\n\nCliquez OK pour activer votre plan Starter maintenant.')) {
-          updateUserPaymentStatus(true, 'starter');
-          alert('🎉 Plan Starter activé ! Vous avez maintenant 25 crédits.');
-          window.location.reload();
-        }
-      }, 3000);
+      // Nouvelle approche avec vérification automatique
+      showPaymentInstructions('pro', stripeUrl);
       
     } else {
       // Fallback pour d'autres plans
       alert(`Redirection vers le paiement pour le plan ${planName}`);
     }
+  };
+
+  const showPaymentInstructions = (planType: string, stripeUrl: string) => {
+    const planName = planType === 'starter' ? 'Starter' : 'Pro';
+    const credits = planType === 'starter' ? 25 : 150;
+    
+    // Créer une modal personnalisée avec instructions
+    const modalHtml = `
+      <div id="payment-modal" style="
+        position: fixed; 
+        top: 0; 
+        left: 0; 
+        width: 100%; 
+        height: 100%; 
+        background: rgba(0,0,0,0.8); 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        z-index: 10000;
+        font-family: Arial, sans-serif;
+      ">
+        <div style="
+          background: white; 
+          padding: 30px; 
+          border-radius: 15px; 
+          max-width: 500px; 
+          width: 90%;
+          text-align: center;
+          box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        ">
+          <h2 style="color: #09B1BA; margin-bottom: 20px;">💳 Paiement ${planName}</h2>
+          <p style="margin-bottom: 20px; color: #333;">
+            Une nouvelle fenêtre Stripe s'est ouverte.<br>
+            Complétez votre paiement puis revenez ici.
+          </p>
+          <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p style="margin: 0; color: #0369a1; font-weight: bold;">
+              ✨ Plan ${planName}: ${credits} crédits/mois
+            </p>
+          </div>
+          <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+            <button id="activate-plan" style="
+              background: #09B1BA; 
+              color: white; 
+              border: none; 
+              padding: 12px 24px; 
+              border-radius: 8px; 
+              cursor: pointer;
+              font-weight: bold;
+            ">✅ J'ai payé - Activer ${planName}</button>
+            <button id="check-later" style="
+              background: #6b7280; 
+              color: white; 
+              border: none; 
+              padding: 12px 24px; 
+              border-radius: 8px; 
+              cursor: pointer;
+            ">⏰ Vérifier plus tard</button>
+            <button id="cancel-payment" style="
+              background: #ef4444; 
+              color: white; 
+              border: none; 
+              padding: 12px 24px; 
+              border-radius: 8px; 
+              cursor: pointer;
+            ">❌ Annuler</button>
+          </div>
+          <p style="font-size: 12px; color: #666; margin-top: 15px;">
+            💡 Si la fenêtre Stripe ne s'est pas ouverte, 
+            <a href="${stripeUrl}" target="_blank" style="color: #09B1BA;">cliquez ici</a>
+          </p>
+        </div>
+      </div>
+    `;
+    
+    // Ajouter la modal au DOM
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    
+    // Gérer les événements
+    const modal = document.getElementById('payment-modal');
+    const activateBtn = document.getElementById('activate-plan');
+    const checkLaterBtn = document.getElementById('check-later');
+    const cancelBtn = document.getElementById('cancel-payment');
+    
+    const closeModal = () => {
+      if (modal) {
+        modal.remove();
+      }
+    };
+    
+    activateBtn?.addEventListener('click', async () => {
+      try {
+        // Activer le plan immédiatement
+        await updateUserPaymentStatus(true, planType as 'starter' | 'pro');
+        closeModal();
+        
+        // Confirmation de succès
+        alert(`🎉 Plan ${planName} activé avec succès !\n\n✨ Vous avez maintenant ${credits} crédits par mois.\n🚀 Vous pouvez commencer à utiliser le service immédiatement.`);
+        
+        // Rafraîchir pour voir les changements
+        window.location.reload();
+      } catch (error) {
+        alert('❌ Erreur lors de l\'activation. Veuillez réessayer ou contacter le support.');
+        console.error('Erreur activation:', error);
+      }
+    });
+    
+    checkLaterBtn?.addEventListener('click', () => {
+      closeModal();
+      alert('⏰ Vous pouvez revenir activer votre plan quand le paiement sera terminé.\n\n💡 Astuce: Rafraîchissez la page (F5) après paiement pour voir les changements.');
+    });
+    
+    cancelBtn?.addEventListener('click', () => {
+      closeModal();
+    });
+    
+    // Fermer en cliquant sur le fond
+    modal?.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        closeModal();
+      }
+    });
   };
 
   const getPlanStatus = (planId: string) => {

@@ -231,6 +231,11 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
                     ✅ Accès complet activé
                   </p>
                 )}
+                {!user.hasPaid && (
+                  <p className="text-yellow-400 text-xs mt-1">
+                    ⚠️ Abonnement requis pour générer des images
+                  </p>
+                )}
               </div>
               <div className="flex flex-col gap-2">
                 {!user.hasPaid && (
