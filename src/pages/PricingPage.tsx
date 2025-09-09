@@ -97,8 +97,18 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
 
   const handleSelectPlan = (planId: string, planName: string) => {
     if (planId === 'free') {
-      // L'utilisateur reste sur le plan gratuit
-      onBack();
+      // L'utilisateur veut passer/rester sur le plan gratuit
+      if (user && user.hasPaid) {
+        // Confirmation pour la rétrogradation vers gratuit
+        if (window.confirm('⚠️ Êtes-vous sûr de vouloir passer au plan gratuit ?\n\n• Vous perdrez l\'accès aux fonctionnalités premium\n• Vous n\'aurez plus que 3 générations par mois\n• Votre abonnement payant sera annulé\n\nCette action est immédiate et gratuite.')) {
+          updateUserPaymentStatus(false);
+          alert('✅ Vous êtes maintenant sur le plan gratuit. Aucun paiement ne sera prélevé.');
+          onBack();
+        }
+      } else {
+        // L'utilisateur est déjà sur le plan gratuit
+        onBack();
+      }
     } else if (planId === 'starter') {
       // Rediriger vers Stripe avec l'email de l'utilisateur
       const email = currentUserEmail || userEmail || 'exemple@gmail.com';
@@ -135,9 +145,9 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       case 'upgrade':
         return `Passer à ${planName}`;
       case 'downgrade':
-        return `Rétrograder vers ${planName}`;
+        return planId === 'free' ? 'Passer au plan gratuit' : `Rétrograder vers ${planName}`;
       default:
-        return `Choisir ${planName}`;
+        return planId === 'free' ? 'Rester gratuit' : `Choisir ${planName}`;
     }
   };
 
@@ -286,6 +296,8 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
                       w-full py-3 px-6 rounded-xl font-medium text-white transition-all duration-200 shadow-lg
                       ${isCurrent 
                         ? 'bg-gray-500 cursor-not-allowed opacity-50' 
+                        : isDowngrade && plan.id === 'free'
+                        ? 'bg-green-500 hover:bg-green-600 hover:scale-105 hover:shadow-xl'
                         : plan.buttonColor + ' hover:scale-105 hover:shadow-xl'
                       }
                     `}
@@ -302,17 +314,23 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
             <div className="mt-12 max-w-2xl mx-auto">
               <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 text-center">
                 <h3 className="text-lg font-semibold text-white mb-3">
-                  Gérer votre abonnement
+                  💡 Bon à savoir
                 </h3>
-                <p className="text-white/80 text-sm mb-4">
-                  Vous pouvez annuler votre abonnement à tout moment. Vous conserverez l'accès jusqu'à la fin de votre période de facturation.
+                <div className="text-left space-y-2 text-white/80 text-sm mb-4">
+                  <p>• <strong>Plan gratuit :</strong> 0€/mois - Aucun paiement</p>
+                  <p>• <strong>Rétrogradation :</strong> Immédiate et gratuite</p>
+                  <p>• <strong>Annulation :</strong> Pas d'engagement, résiliable à tout moment</p>
+                  <p>• <strong>Crédits :</strong> Les crédits non utilisés sont perdus lors du changement de plan</p>
+                </div>
+                <p className="text-white/60 text-xs mb-4">
+                  Vous pouvez changer de plan à tout moment depuis cette page.
                 </p>
                 <button
                   onClick={handleCancelSubscription}
                   className="inline-flex items-center px-4 py-2 bg-red-500/20 text-red-300 rounded-lg border border-red-500/30 hover:bg-red-500/30 transition-colors text-sm"
                 >
                   <X className="w-4 h-4 mr-2" />
-                  Annuler mon abonnement
+                  Annuler et passer au gratuit
                 </button>
               </div>
             </div>
