@@ -50,15 +50,10 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
         return;
       }
       
-      // Vérifier les crédits ET le statut de paiement
-      if (!user?.hasPaid || (user?.subscription?.creditsRemaining || 0) <= 0) {
-        if (!user?.hasPaid) {
-          console.log('⚠️ Utilisateur sans abonnement, redirection vers pricing');
-          onShowPricing?.();
-        } else {
-          console.log('💳 Plus de crédits, redirection vers pricing');
-          onShowPricing?.();
-        }
+      // Vérifier seulement les crédits (peu importe le plan)
+      if ((user?.subscription?.creditsRemaining || 0) <= 0) {
+        console.log('💳 Plus de crédits disponibles, redirection vers pricing');
+        onShowPricing?.();
         return;
       }
       
