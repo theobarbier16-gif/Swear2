@@ -51,6 +51,7 @@ interface AuthContextType {
   clearError: () => void;
   updateUserPaymentStatus: (hasPaid: boolean, plan?: string) => Promise<void>;
   decrementCredits: () => Promise<boolean>;
+  refundCredits: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -326,7 +327,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         'subscription.creditsRemaining': newCreditsRemaining
       });
 
-      // Update local state
+      // Update local state immediately for real-time UI update
       setUser(prev => prev ? {
         ...prev,
         subscription: {
@@ -344,6 +345,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const refundCredits = async (): Promise<boolean> => {
+    if (!user || !user.subscription) return false;
+
+    try {
+      console.log(`💰 Remboursement d'un crédit (${user.subscription.creditsRemaining} → ${user.subscription.creditsRemaining + 1})`);
+      const newCreditsRemaining = user.subscription.creditsRemaining + 1;
+      
+      await updateDoc(doc(db, 'users', user.uid), {
+        'subscription.creditsRemaining': newCreditsRemaining
+      });
+
+      // Update local state immediately for real-time UI update
+      setUser(prev => prev ? {
+        ...prev,
+        subscription: {
+          ...prev.subscription!,
+          creditsRemaining: newCreditsRemaining
+        }
+      } : null);
+
+      console.log(`✅ Crédit remboursé avec succès: ${newCreditsRemaining} crédits restants`);
+      return true;
+    } catch (error) {
+      console.error('❌ Erreur lors du remboursement des crédits:', error);
+      setError('Erreur lors du remboursement des crédits');
+      return false;
+    }
+  };
+
   const value: AuthContextType = {
     user,
     isAuthenticated: !!user,
@@ -354,7 +384,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     clearError,
     updateUserPaymentStatus,
-    decrementCredits
+    decrementCredits,
+    refundCredits
   };
 
   return (
