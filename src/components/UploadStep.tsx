@@ -222,19 +222,33 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
                 <h4 className="text-white font-medium">Bienvenue, {user.firstName} !</h4>
                 <p className="text-white/70 text-sm">
                   {user.hasPaid 
-                    ? `Plan ${user.subscription?.plan || 'Premium'} • ${user.subscription?.creditsRemaining || 0} crédits restants`
+                    ? `Plan ${user.subscription?.plan === 'pro' ? 'Pro' : user.subscription?.plan === 'starter' ? 'Starter' : 'Premium'} • ${user.subscription?.creditsRemaining || 0} crédits restants`
                     : 'Plan gratuit • Abonnement requis pour utiliser le service'
                   }
                 </p>
+                {user.hasPaid && (
+                  <p className="text-green-400 text-xs mt-1">
+                    ✅ Accès complet activé
+                  </p>
+                )}
               </div>
-              {!user.hasPaid && (
-                <button 
-                  onClick={onShowPricing}
-                  className="bg-white text-vinted-500 px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/90 transition-colors"
+              <div className="flex flex-col gap-2">
+                {!user.hasPaid && (
+                  <button 
+                    onClick={onShowPricing}
+                    className="bg-white text-vinted-500 px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/90 transition-colors"
+                  >
+                    Souscrire
+                  </button>
+                )}
+                <button
+                  onClick={() => window.location.reload()}
+                  className="text-xs text-white/60 hover:text-white/80 transition-colors px-2 py-1"
+                  title="Rafraîchir les données"
                 >
-                  Souscrire
+                  🔄 Actualiser
                 </button>
-              )}
+              </div>
             </div>
           </div>
         )}

@@ -121,6 +121,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Écouter les changements d'état d'authentification Firebase
   useEffect(() => {
+    let refreshInterval: NodeJS.Timeout;
+    
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       console.log('🔥 === AUTH STATE CHANGE ===');
       console.log('🔥 User email:', firebaseUser?.email || 'No user');
@@ -154,7 +156,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    return () => unsubscribe();
+    // Rafraîchir les données utilisateur toutes les 30 secondes si connecté
+    refreshInterval = setInterval(async () => {
+      if (auth.currentUser) {
+        try {
+          const user = await mapFirebaseUserToUser(auth.currentUser);
+          dispatch({ type: 'SET_USER', payload: user });
+          console.log('🔄 Données utilisateur rafraîchies automatiquement');
+        } catch (error) {
+          console.log('⚠️ Erreur lors du rafraîchissement automatique:', error);
+        }
+      }
+    }, 30000); // 30 secondes
+
+    return () => {
+      unsubscribe();
+      if (refreshInterval) clearInterval(refreshInterval);
+    };
   }, []);
 
   const login = async (credentials: LoginCredentials) => {

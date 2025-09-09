@@ -119,6 +119,12 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
   };
 
   const handleSelectPlan = (planId: string, planName: string) => {
+    // Empêcher l'achat du même plan
+    if (planId === currentPlan && user?.hasPaid) {
+      alert('✅ Vous êtes déjà abonné à ce plan !\n\nVotre abonnement est actif et vous avez accès à toutes les fonctionnalités.');
+      return;
+    }
+    
     if (planId === 'free') {
       // L'utilisateur veut passer/rester sur le plan gratuit
       if (user && user.hasPaid) {
@@ -139,8 +145,12 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       const stripeUrl = `https://buy.stripe.com/test_fZucMYcHubsj23adLG2VG00?prefilled_email=${encodedEmail}`;
       window.open(stripeUrl, '_blank');
       
-      // NE PAS simuler le paiement - attendre la vraie confirmation Stripe
-      alert('💳 Vous allez être redirigé vers Stripe pour effectuer le paiement. Une fois le paiement confirmé, vous aurez accès au service Premium.');
+      alert('💳 Redirection vers Stripe...\n\n' +
+            '⚠️ IMPORTANT après paiement :\n' +
+            '1. Revenez sur cette page\n' +
+            '2. Rafraîchissez la page (F5)\n' +
+            '3. Vos fonctionnalités seront activées\n\n' +
+            '💡 Si le problème persiste, contactez le support.');
     } else if (planId === 'pro') {
       // Rediriger vers Stripe Pro avec l'email de l'utilisateur
       const email = currentUserEmail || userEmail || 'exemple@gmail.com';
@@ -148,8 +158,12 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       const stripeUrl = `https://buy.stripe.com/test_eVqfZa22Q7c3bDK4b62VG01?prefilled_email=${encodedEmail}`;
       window.open(stripeUrl, '_blank');
       
-      // NE PAS simuler le paiement - attendre la vraie confirmation Stripe
-      alert('💳 Vous allez être redirigé vers Stripe pour effectuer le paiement du plan Pro. Une fois le paiement confirmé, vous aurez accès à toutes les fonctionnalités premium.');
+      alert('💳 Redirection vers Stripe Pro...\n\n' +
+            '⚠️ IMPORTANT après paiement :\n' +
+            '1. Revenez sur cette page\n' +
+            '2. Rafraîchissez la page (F5)\n' +
+            '3. Vos fonctionnalités Pro seront activées\n\n' +
+            '💡 Si le problème persiste, contactez le support.');
     } else {
       // Fallback pour d'autres plans
       alert(`Redirection vers le paiement pour le plan ${planName}`);
@@ -323,10 +337,10 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
                   {/* CTA Button */}
                   <button
                     onClick={() => handleSelectPlan(plan.id, plan.name)}
-                    disabled={isCurrent}
+                    disabled={isCurrent && user?.hasPaid}
                     className={`
                       w-full py-3 px-6 rounded-xl font-medium text-white transition-all duration-200 shadow-lg
-                      ${isCurrent 
+                      ${isCurrent && user?.hasPaid
                         ? 'bg-gray-500 cursor-not-allowed opacity-50' 
                         : isDowngrade && plan.id === 'free'
                         ? 'bg-green-500 hover:bg-green-600 hover:scale-105 hover:shadow-xl'
@@ -334,7 +348,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
                       }
                     `}
                   >
-                    {getButtonText(plan.id, plan.name)}
+                    {isCurrent && user?.hasPaid ? 'Plan actuel' : getButtonText(plan.id, plan.name)}
                   </button>
                 </div>
               );

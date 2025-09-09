@@ -60,8 +60,19 @@ const Header: React.FC<HeaderProps> = ({ onShowLogin, onShowPricing, onGoHome })
                 <div className="flex items-center space-x-4">
                   <span className="text-white/90 text-sm">
                     Bonjour, {user?.firstName}
-                    {user?.hasPaid && <span className="ml-2 text-xs bg-green-500 text-white px-2 py-1 rounded-full">Premium</span>}
+                    {user?.hasPaid && (
+                      <span className="ml-2 text-xs bg-green-500 text-white px-2 py-1 rounded-full">
+                        {user.subscription?.plan === 'pro' ? 'Pro' : 'Premium'}
+                      </span>
+                    )}
                   </span>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="text-xs text-white/60 hover:text-white/80 transition-colors"
+                    title="Rafraîchir les données"
+                  >
+                    🔄
+                  </button>
                   <button
                     onClick={handleLogout}
                     className="flex items-center hover:text-white transition-colors duration-200 bg-white/10 backdrop-blur-lg px-3 py-2 rounded-lg border border-white/20 hover:bg-white/20"
@@ -120,8 +131,18 @@ const Header: React.FC<HeaderProps> = ({ onShowLogin, onShowPricing, onGoHome })
                 <div className="space-y-2">
                   <div className="text-white/90 py-2 px-4">
                     Bonjour, {user?.firstName} !
-                    {user?.hasPaid && <span className="ml-2 text-xs bg-green-500 text-white px-2 py-1 rounded-full">Premium</span>}
+                    {user?.hasPaid && (
+                      <span className="ml-2 text-xs bg-green-500 text-white px-2 py-1 rounded-full">
+                        {user.subscription?.plan === 'pro' ? 'Pro' : 'Premium'}
+                      </span>
+                    )}
                   </div>
+                  <button 
+                    onClick={() => window.location.reload()}
+                    className="flex items-center text-white/80 hover:text-white transition-colors duration-200 bg-white/10 backdrop-blur-lg px-4 py-2 rounded-lg border border-white/20 hover:bg-white/20 text-left w-full"
+                  >
+                    🔄 Rafraîchir les données
+                  </button>
                   <button 
                     onClick={handleLogout}
                     className="flex items-center text-white/80 hover:text-white transition-colors duration-200 bg-white/10 backdrop-blur-lg px-4 py-2 rounded-lg border border-white/20 hover:bg-white/20 text-left w-full"
