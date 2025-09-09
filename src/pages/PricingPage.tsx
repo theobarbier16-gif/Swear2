@@ -145,25 +145,46 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       const stripeUrl = `https://buy.stripe.com/test_fZucMYcHubsj23adLG2VG00?prefilled_email=${encodedEmail}`;
       window.open(stripeUrl, '_blank');
       
-      alert('💳 Redirection vers Stripe...\n\n' +
+      alert('💳 Redirection vers Stripe Starter...\n\n' +
             '⚠️ IMPORTANT après paiement :\n' +
             '1. Revenez sur cette page\n' +
-            '2. Rafraîchissez la page (F5)\n' +
-            '3. Vos fonctionnalités seront activées\n\n' +
+            '2. Cliquez sur "Mettre à jour vers Starter" ci-dessous\n' +
+            '3. Ou rafraîchissez la page (F5)\n\n' +
             '💡 Si le problème persiste, contactez le support.');
+      
+      // Ajouter un bouton pour forcer la mise à jour vers Starter
+      setTimeout(() => {
+        if (window.confirm('✅ Paiement Stripe terminé ?\n\nCliquez OK pour activer votre plan Starter maintenant.')) {
+          updateUserPaymentStatus(true, 'starter');
+          alert('🎉 Plan Starter activé ! Vous avez maintenant 25 crédits.');
+          window.location.reload();
+        }
+      }, 3000);
+      
     } else if (planId === 'pro') {
       // Rediriger vers Stripe Pro avec l'email de l'utilisateur
       const email = currentUserEmail || userEmail || 'exemple@gmail.com';
       const encodedEmail = encodeURIComponent(email);
       const stripeUrl = `https://buy.stripe.com/test_eVqfZa22Q7c3bDK4b62VG01?prefilled_email=${encodedEmail}`;
+      
       window.open(stripeUrl, '_blank');
       
       alert('💳 Redirection vers Stripe Pro...\n\n' +
             '⚠️ IMPORTANT après paiement :\n' +
             '1. Revenez sur cette page\n' +
-            '2. Rafraîchissez la page (F5)\n' +
-            '3. Vos fonctionnalités Pro seront activées\n\n' +
+            '2. Cliquez sur "Mettre à jour vers Starter" ci-dessous\n' +
+            '3. Ou rafraîchissez la page (F5)\n\n' +
             '💡 Si le problème persiste, contactez le support.');
+      
+      // Ajouter un bouton pour forcer la mise à jour vers Starter
+      setTimeout(() => {
+        if (window.confirm('✅ Paiement Stripe terminé ?\n\nCliquez OK pour activer votre plan Starter maintenant.')) {
+          updateUserPaymentStatus(true, 'starter');
+          alert('🎉 Plan Starter activé ! Vous avez maintenant 25 crédits.');
+          window.location.reload();
+        }
+      }, 3000);
+      
     } else {
       // Fallback pour d'autres plans
       alert(`Redirection vers le paiement pour le plan ${planName}`);
