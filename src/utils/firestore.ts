@@ -158,16 +158,6 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
           updateUserPaymentStatus(true, 'starter');
           alert('🎉 Plan Starter activé ! Vous avez maintenant 25 crédits.');
           window.location.reload();
-            '2. Cliquez sur "Mettre à jour vers Starter" ci-dessous\n' +
-            '3. Ou rafraîchissez la page (F5)\n\n' +
-      
-      
-      // Ajouter un bouton pour forcer la mise à jour vers Starter
-      setTimeout(() => {
-        if (window.confirm('✅ Paiement Stripe terminé ?\n\nCliquez OK pour activer votre plan Starter maintenant.')) {
-          updateUserPaymentStatus(true, 'starter');
-          alert('🎉 Plan Starter activé ! Vous avez maintenant 25 crédits.');
-          window.location.reload();
         }
       }, 3000);
       
@@ -182,15 +172,15 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       alert('💳 Redirection vers Stripe Pro...\n\n' +
             '⚠️ IMPORTANT après paiement :\n' +
             '1. Revenez sur cette page\n' +
-            '2. Cliquez sur "Mettre à jour vers Starter" ci-dessous\n' +
+            '2. Cliquez sur "Mettre à jour vers Pro" ci-dessous\n' +
             '3. Ou rafraîchissez la page (F5)\n\n' +
             '💡 Si le problème persiste, contactez le support.');
       
-      // Ajouter un bouton pour forcer la mise à jour vers Starter
+      // Ajouter un bouton pour forcer la mise à jour vers Pro
       setTimeout(() => {
-        if (window.confirm('✅ Paiement Stripe terminé ?\n\nCliquez OK pour activer votre plan Starter maintenant.')) {
-          updateUserPaymentStatus(true, 'starter');
-          alert('🎉 Plan Starter activé ! Vous avez maintenant 25 crédits.');
+        if (window.confirm('✅ Paiement Stripe terminé ?\n\nCliquez OK pour activer votre plan Pro maintenant.')) {
+          updateUserPaymentStatus(true, 'pro');
+          alert('🎉 Plan Pro activé ! Vous avez maintenant 150 crédits.');
           window.location.reload();
         }
       }, 3000);
