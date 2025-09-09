@@ -158,6 +158,26 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
           updateUserPaymentStatus(true, 'starter');
           alert('🎉 Plan Starter activé ! Vous avez maintenant 25 crédits.');
           window.location.reload();
+            '2. Cliquez sur "Mettre à jour vers Starter" ci-dessous\n' +
+            '3. Ou rafraîchissez la page (F5)\n\n' +
+      
+      
+      // Ajouter un bouton pour forcer la mise à jour vers Starter
+      setTimeout(() => {
+        if (window.confirm('✅ Paiement Stripe terminé ?\n\nCliquez OK pour activer votre plan Starter maintenant.')) {
+          updateUserPaymentStatus(true, 'starter');
+          alert('🎉 Plan Starter activé ! Vous avez maintenant 25 crédits.');
+          window.location.reload();
+            '2. Cliquez sur "Mettre à jour vers Starter" ci-dessous\n' +
+            '3. Ou rafraîchissez la page (F5)\n\n' +
+      
+      
+      // Ajouter un bouton pour forcer la mise à jour vers Starter
+      setTimeout(() => {
+        if (window.confirm('✅ Paiement Stripe terminé ?\n\nCliquez OK pour activer votre plan Starter maintenant.')) {
+          updateUserPaymentStatus(true, 'starter');
+          alert('🎉 Plan Starter activé ! Vous avez maintenant 25 crédits.');
+          window.location.reload();
         }
       }, 3000);
       
@@ -167,12 +187,25 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       const encodedEmail = encodeURIComponent(email);
       const stripeUrl = `https://buy.stripe.com/test_eVqfZa22Q7c3bDK4b62VG01?prefilled_email=${encodedEmail}`;
       
+                
       window.open(stripeUrl, '_blank');
       
       alert('💳 Redirection vers Stripe Pro...\n\n' +
             '⚠️ IMPORTANT après paiement :\n' +
             '1. Revenez sur cette page\n' +
             '2. Cliquez sur "Mettre à jour vers Starter" ci-dessous\n' +
+  // Fonction pour forcer la mise à jour du plan
+  const handleForceUpdatePlan = (planType: 'starter' | 'pro') => {
+    const credits = planType === 'starter' ? 25 : 150;
+    const planName = planType === 'starter' ? 'Starter' : 'Pro';
+    
+    if (window.confirm(`🔄 Forcer la mise à jour vers ${planName} ?\n\n• Plan: ${planName}\n• Crédits: ${credits}\n• Cette action mettra à jour Firebase immédiatement`)) {
+      updateUserPaymentStatus(true, planType);
+      alert(`🎉 Plan ${planName} activé ! Vous avez maintenant ${credits} crédits.`);
+      window.location.reload();
+    }
+  };
+
             '3. Ou rafraîchissez la page (F5)\n\n' +
             '💡 Si le problème persiste, contactez le support.');
       
