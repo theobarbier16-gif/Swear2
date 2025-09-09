@@ -2,6 +2,9 @@ import React from 'react';
 import { ArrowLeft, Check, Sparkles, Zap, Crown, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
+// Mode test Stripe - permet la simulation de paiements
+const STRIPE_TEST_MODE = true;
+
 interface PricingPageProps {
   onBack: () => void;
   userEmail?: string;
@@ -11,6 +14,44 @@ interface PricingPageProps {
 const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUserEmail }) => {
   const { user } = useAuth();
 
+  // Fonction pour vérifier automatiquement les paiements test
+  const checkTestPayment = async (planId: string) => {
+    if (!STRIPE_TEST_MODE) return;
+    
+    // Simuler une vérification de paiement après un délai
+    setTimeout(async () => {
+      try {
+        // En mode test, on peut simuler la vérification du paiement
+        const testPaymentSuccess = await simulateStripeWebhook(planId);
+        
+        if (testPaymentSuccess && user) {
+          // Mettre à jour le statut utilisateur après vérification simulée
+          const { updateUserPaymentStatus } = useAuth();
+          await updateUserPaymentStatus(true, planId);
+          
+          // Rafraîchir la page pour afficher les changements
+          window.location.reload();
+        }
+      } catch (error) {
+        console.error('Erreur simulation paiement test:', error);
+      }
+    }, 3000); // Attendre 3 secondes pour simuler le webhook
+  };
+
+  // Simuler un webhook Stripe en mode test
+  const simulateStripeWebhook = async (planId: string): Promise<boolean> => {
+    console.log(`🧪 [MODE TEST] Simulation webhook Stripe pour plan: ${planId}`);
+    
+    // En mode test, on peut vérifier si l'utilisateur a bien été redirigé vers Stripe
+    // et simuler un paiement réussi
+    return new Promise((resolve) => {
+      // Simuler le temps de traitement Stripe
+      setTimeout(() => {
+        console.log(`✅ [MODE TEST] Paiement simulé réussi pour plan: ${planId}`);
+        resolve(true);
+      }, 1000);
+    });
+  };
   // Déterminer le plan actuel de l'utilisateur
   const getCurrentPlan = () => {
     if (!user) return 'free';
@@ -110,8 +151,11 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       const stripeUrl = `https://buy.stripe.com/test_fZucMYcHubsj23adLG2VG00?prefilled_email=${encodedEmail}`;
       window.open(stripeUrl, '_blank');
       
-      // Démarrer la vérification automatique du paiement
-      checkPaymentStatus(planId);
+      // En mode test, démarrer la vérification simulée
+      if (STRIPE_TEST_MODE) {
+        console.log('🧪 [MODE TEST] Démarrage vérification paiement simulée...');
+        checkTestPayment(planId);
+      }
       
     } else if (planId === 'pro') {
       // Redirection vers Stripe pour le plan Pro
@@ -121,8 +165,11 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       
       window.open(stripeUrl, '_blank');
       
-      // Démarrer la vérification automatique du paiement
-      checkPaymentStatus(planId);
+      // En mode test, démarrer la vérification simulée
+      if (STRIPE_TEST_MODE) {
+        console.log('🧪 [MODE TEST] Démarrage vérification paiement simulée...');
+        checkTestPayment(planId);
+      }
     }
   };
 
@@ -382,13 +429,19 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
           
           {/* Important Security Notice */}
           <div className="mt-8 max-w-4xl mx-auto">
-            <div className="bg-green-500/10 backdrop-blur-lg rounded-xl p-6 border border-green-500/20 text-center">
+            <div className={`backdrop-blur-lg rounded-xl p-6 border text-center ${
+              STRIPE_TEST_MODE 
+                ? 'bg-blue-500/10 border-blue-500/20' 
+                : 'bg-green-500/10 border-green-500/20'
+                STRIPE_TEST_MODE ? 'text-blue-400' : 'text-green-400'
               <h3 className="font-semibold text-green-400 mb-2">
-                🔒 Sécurité garantie
+                {STRIPE_TEST_MODE ? '🧪 Mode Test Stripe' : '🔒 Sécurité garantie'}
               </h3>
               <p className="text-green-300 text-sm">
-                Seuls les paiements Stripe validés activent automatiquement votre plan. 
-                Aucune activation manuelle n'est possible pour garantir la sécurité.
+                {STRIPE_TEST_MODE 
+                  ? 'Mode test activé. Les paiements sont simulés automatiquement après redirection Stripe. En production, seuls les vrais paiements activent les plans.'
+                  : 'Seuls les paiements Stripe validés activent automatiquement votre plan. Aucune activation manuelle n\'est possible pour garantir la sécurité.'
+                }
               </p>
             </div>
           </div>
