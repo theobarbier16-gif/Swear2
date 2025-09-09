@@ -455,7 +455,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
                 </a>
                 <div className="mt-4 p-3 bg-white/5 rounded-lg">
                   <p className="text-xs text-white/60">
-                    💡 Astuce : Après modification sur Stripe, rafraîchissez cette page pour voir les changements
+                    💡 Carte de test : 5454 5454 5454 5454 • Date future • CVC : 123
                   </p>
                 </div>
               </div>
@@ -519,7 +519,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
                 STRIPE_TEST_MODE ? 'text-blue-300' : 'text-green-300'
               }`}>
                 {STRIPE_TEST_MODE 
-                  ? 'Mode test activé. Les paiements sont simulés automatiquement après redirection Stripe. En production, seuls les vrais paiements activent les plans.'
+                  ? 'Mode test activé. Utilisez la carte 5454 5454 5454 5454 pour tester les paiements. Les plans sont activés automatiquement après paiement réussi.'
                   : 'Seuls les paiements Stripe validés activent automatiquement votre plan. Aucune activation manuelle n\'est possible pour garantir la sécurité.'
                 }
               </p>
