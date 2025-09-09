@@ -26,14 +26,8 @@ function App() {
   console.log('🚀 === DEBUT FUNCTION APP ===');
   console.log('🧪 APP - Test de log dans App component');
   
-  let user = null;
-  try {
-    const authResult = useAuth();
-    user = authResult.user;
-    console.log('🚀 User from useAuth:', user);
-  } catch (error) {
-    console.error('❌ Erreur useAuth:', error);
-  }
+  const { user, decrementCredits, refundCredits } = useAuth();
+  console.log('🚀 User from useAuth:', user);
   
   const [currentView, setCurrentView] = useState<AppView>('main');
   const [currentStep, setCurrentStep] = useState<ProcessingStep>('upload');
@@ -127,7 +121,6 @@ function App() {
         addDebugLog(`❌ Échec du traitement: ${result.error}`);
         
         // Rembourser le crédit en cas d'échec
-        const { refundCredits } = useAuth();
         const refunded = await refundCredits();
         if (refunded) {
           addDebugLog('💰 Crédit remboursé après échec - UI mise à jour automatiquement');
@@ -143,7 +136,6 @@ function App() {
       console.error('Error processing image:', error);
       
       // Rembourser le crédit en cas d'erreur critique
-      const { refundCredits } = useAuth();
       const refunded = await refundCredits();
       if (refunded) {
         addDebugLog('💰 Crédit remboursé après erreur critique - UI mise à jour automatiquement');
