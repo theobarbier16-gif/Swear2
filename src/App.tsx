@@ -63,30 +63,6 @@ function App() {
   const handleImageUpload = async (imageUrl: string, name: string, file: File, options: ClothingOptions) => {
     addDebugLog('🚀 Début du processus d\'upload');
     
-    // Vérifications de sécurité strictes
-    if (!user) {
-      addDebugLog('❌ Utilisateur non connecté');
-      setProcessingError('Vous devez être connecté pour utiliser ce service.');
-      setCurrentView('login');
-      return;
-    }
-    
-    addDebugLog(`🔍 Vérification utilisateur - Plan: ${user.subscription?.plan}, hasPaid: ${user.hasPaid}, Crédits: ${user.subscription?.creditsRemaining}`);
-    
-    if (!user.hasPaid) {
-      addDebugLog('❌ Utilisateur n\'a pas payé');
-      setProcessingError('Vous devez souscrire à un abonnement pour utiliser ce service.');
-      setCurrentView('pricing');
-      return;
-    }
-    
-    if ((user.subscription?.creditsRemaining || 0) <= 0) {
-      addDebugLog('❌ Utilisateur sans crédits');
-      setProcessingError('Vous n\'avez plus de crédits disponibles. Veuillez recharger votre compte.');
-      setCurrentView('pricing');
-      return;
-    }
-
     setUploadedImage(imageUrl);
     setFileName(name);
     setClothingOptions(options);
@@ -96,18 +72,6 @@ function App() {
     setIsProcessing(true);
     
     // Décrémenter les crédits AVANT le traitement pour éviter les abus
-    addDebugLog('💳 Déduction préventive d\'1 crédit avant traitement');
-    const { decrementCredits } = useAuth();
-    const creditDeducted = await decrementCredits();
-    if (!creditDeducted) {
-      addDebugLog('❌ Erreur déduction préventive');
-      setProcessingError('Erreur lors de la déduction des crédits.');
-      setCurrentStep('upload');
-      setIsProcessing(false);
-      return;
-    }
-    addDebugLog('✅ Crédit déduit préventivement - UI mise à jour automatiquement');
-    
     try {
       // Process image with N8N webhook
       addDebugLog('📡 Appel du webhook N8N...');
@@ -119,30 +83,12 @@ function App() {
         setCurrentStep('results');
       } else {
         addDebugLog(`❌ Échec du traitement: ${result.error}`);
-        
-        // Rembourser le crédit en cas d'échec
-        const refunded = await refundCredits();
-        if (refunded) {
-          addDebugLog('💰 Crédit remboursé après échec - UI mise à jour automatiquement');
-        } else {
-          addDebugLog('⚠️ Erreur remboursement');
-        }
-        
         setProcessingError(result.error || 'Erreur lors du traitement de l\'image');
         setCurrentStep('upload');
       }
     } catch (error) {
       addDebugLog(`💥 Erreur critique: ${error}`);
       console.error('Error processing image:', error);
-      
-      // Rembourser le crédit en cas d'erreur critique
-      const refunded = await refundCredits();
-      if (refunded) {
-        addDebugLog('💰 Crédit remboursé après erreur critique - UI mise à jour automatiquement');
-      } else {
-        addDebugLog('⚠️ Erreur remboursement critique');
-      }
-      
       setProcessingError('Erreur de connexion au service de traitement');
       setCurrentStep('upload');
     } finally {
