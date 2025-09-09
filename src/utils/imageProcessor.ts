@@ -202,9 +202,16 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Origin': window.location.origin,
+        'Referer': window.location.href,
       },
       body: JSON.stringify(payload),
       signal: controller.signal,
+      mode: 'cors',
+      credentials: 'omit',
     });
     
     clearTimeout(timeoutId);
