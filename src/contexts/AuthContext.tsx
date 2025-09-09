@@ -314,11 +314,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (!user || !user.subscription) return false;
 
     if (user.subscription.creditsRemaining <= 0) {
+      console.log('❌ Aucun crédit disponible pour déduction');
       return false;
     }
 
     try {
-      console.log('💳 Decrementing credits');
+      console.log(`💳 Déduction d'un crédit (${user.subscription.creditsRemaining} → ${user.subscription.creditsRemaining - 1})`);
       const newCreditsRemaining = user.subscription.creditsRemaining - 1;
       
       await updateDoc(doc(db, 'users', user.uid), {
@@ -334,10 +335,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       } : null);
 
-      console.log(`✅ Credits decremented: ${newCreditsRemaining} remaining`);
+      console.log(`✅ Crédit déduit avec succès: ${newCreditsRemaining} crédits restants`);
       return true;
     } catch (error) {
-      console.error('Error decrementing credits:', error);
+      console.error('❌ Erreur lors de la déduction des crédits:', error);
       setError('Erreur lors de la déduction des crédits');
       return false;
     }
