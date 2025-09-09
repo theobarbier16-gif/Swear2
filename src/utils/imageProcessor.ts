@@ -173,6 +173,7 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
     debugLog(`  - gender: "${options.gender}"`);
     debugLog(`  - size: "${options.size}"`);
     debugLog(`  - mirror: "${mirrorValue}"`);
+    debugLog(`📡 URL du webhook: https://n8n-automatisation.fr/webhook-test/testvolt`);
     
     const payloadSize = JSON.stringify(payload).length;
     const payloadSizeMB = (payloadSize / (1024 * 1024)).toFixed(2);
@@ -185,42 +186,16 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
     }
     debugLog(`📋 Paramètres: gender=${options.gender}, size=${options.size}, mirror=${options.mirror}`);
     
-    // Test de connectivité avant l'envoi principal
-    debugLog('🔍 Test de connectivité vers le serveur...');
-    try {
-      // Test avec une requête OPTIONS pour vérifier CORS
-      const testResponse = await fetch('https://n8n-automatisation.fr/webhook-test/testvolt', {
-        method: 'OPTIONS',
-        headers: {
-          'Accept': '*/*',
-          'Access-Control-Request-Method': 'POST',
-          'Access-Control-Request-Headers': 'Content-Type',
-          'Origin': window.location.origin,
-        },
-      });
-      debugLog(`✅ Test CORS: ${testResponse.status} ${testResponse.statusText}`);
-      
-      // Vérifier les headers CORS
-      const corsHeaders = {
-        'Access-Control-Allow-Origin': testResponse.headers.get('Access-Control-Allow-Origin'),
-        'Access-Control-Allow-Methods': testResponse.headers.get('Access-Control-Allow-Methods'),
-        'Access-Control-Allow-Headers': testResponse.headers.get('Access-Control-Allow-Headers'),
-      };
-      debugLog(`🔍 Headers CORS: ${JSON.stringify(corsHeaders)}`);
-      
-    } catch (testError) {
-      debugLog(`⚠️ Test CORS échoué: ${testError}`);
-      // Continuer quand même, parfois OPTIONS n'est pas supporté
-    }
-    
     // Essayer plusieurs URLs de fallback
     const webhookUrls = [
       'https://n8n-automatisation.fr/webhook-test/testvolt',
-      'https://n8n-automatisation.fr/webhook/testvolt'
+      'https://n8n-automatisation.fr/webhook-test/testvolt',
+      'https://n8n-automatisation.fr/webhook/testvolt',
+      'https://n8n-automatisation.fr/webhook-test/testvolt'
     ];
     
     let response;
-    const maxRetries = 1; // Réduire les tentatives pour éviter les timeouts multiples
+    const maxRetries = 2;
     let lastError;
     let successUrl = null;
     
@@ -233,7 +208,7 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
           debugLog(`🔄 Tentative ${attempt + 1}/${maxRetries + 1} pour ${webhookUrl}`);
           
           const controller = new AbortController();
-          const timeoutDuration = 15000; // Réduire à 15s pour éviter les longs timeouts
+          const timeoutDuration = 30000; // Augmenter à 30s pour laisser plus de temps
           const timeoutId = setTimeout(() => {
             debugLog('⏰ Timeout - annulation de la requête');
             controller.abort();
@@ -247,9 +222,13 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
           // Headers optimisés pour mobile et CORS
           const headers = {
             'Content-Type': 'application/json',
+            'Accept': 'application/json, */*',
+            'User-Agent': 'Swear-App/1.0',
+            'X-Requested-With': 'XMLHttpRequest'
           };
           
           debugLog(`📋 Headers envoyés: ${JSON.stringify(headers)}`);
+          debugLog(`📦 Taille payload: ${payloadSizeMB} MB`);
           
           response = await fetch(webhookUrl, {
             method: 'POST',
@@ -262,6 +241,7 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
           const endTime = Date.now();
           const duration = endTime - startTime;
           debugLog(`✅ Requête envoyée en ${duration}ms`);
+          debugLog(`📡 Réponse reçue: ${response.status} ${response.statusText}`);
           debugLog(`📡 Statut reçu: ${response.status} ${response.statusText}`);
           
           // Log des headers de réponse
@@ -270,6 +250,11 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
             responseHeaders[key] = value;
           });
           debugLog(`📋 Headers réponse: ${JSON.stringify(responseHeaders)}`);
+          
+          // Vérifier si la réponse indique que le webhook a bien reçu les données
+          if (response.status >= 200 && response.status < 300) {
+            debugLog(`✅ Webhook a reçu les données avec succès (${response.status})`);
+          }
           
           successUrl = webhookUrl;
           break; // Succès, sortir de la boucle
@@ -300,7 +285,7 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
           } else {
             // Attendre avant de réessayer
             const waitTime = 2000; // Temps d'attente fixe de 2s
-            debugLog(`⏳ Attente de ${waitTime}ms avant retry...`);
+            debugLog(`⏳ Attente de ${waitTime/1000}s avant retry...`);
             await new Promise(resolve => setTimeout(resolve, waitTime));
           }
         }
@@ -314,14 +299,8 @@ export const processImageWithN8N = async (file: File, options: ClothingOptions):
     }
     
     if (!response) {
-      debugLog('❌ Aucune réponse reçue - passage en mode simulation');
-      
-      // Retourner une erreur au lieu de passer en mode simulation
-      debugLog('❌ Impossible de contacter le serveur');
-      return {
-        success: false,
-        error: 'Impossible de contacter le serveur de traitement. Vérifiez votre connexion internet.',
-      };
+      debugLog('❌ Aucune réponse reçue de N8N après toutes les tentatives');
+      throw new Error(`Impossible de contacter le serveur N8N. Dernière erreur: ${lastError?.message || 'Inconnue'}`);
     }
 
     debugLog(`📡 Analyse de la réponse: ${response.status} ${response.statusText}`);
