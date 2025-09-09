@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Check, Sparkles, Zap, Crown } from 'lucide-react';
+import { ArrowLeft, Check, Sparkles, Zap, Crown, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface PricingPageProps {
@@ -9,10 +9,24 @@ interface PricingPageProps {
 }
 
 const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUserEmail }) => {
-  const { updateUserPaymentStatus } = useAuth();
+  const { updateUserPaymentStatus, user } = useAuth();
+
+  // Déterminer le plan actuel de l'utilisateur
+  const getCurrentPlan = () => {
+    if (!user) return 'free';
+    if (!user.hasPaid) return 'free';
+    
+    const credits = user.subscription?.creditsRemaining || 0;
+    if (credits <= 25) return 'starter';
+    if (credits <= 150) return 'pro';
+    return 'starter'; // fallback
+  };
+
+  const currentPlan = getCurrentPlan();
 
   const plans = [
     {
+      id: 'free',
       name: 'Free Plan',
       price: '0€',
       period: '/mois',
@@ -27,9 +41,10 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       color: 'from-gray-400 to-gray-600',
       buttonColor: 'bg-gray-500 hover:bg-gray-600',
       popular: false,
-      current: true
+      credits: 3
     },
     {
+      id: 'starter',
       name: 'Starter',
       price: '9,90€',
       period: '/mois',
@@ -46,9 +61,10 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       color: 'from-vinted-400 to-vinted-600',
       buttonColor: 'bg-vinted-500 hover:bg-vinted-600',
       popular: true,
-      current: false
+      credits: 25
     },
     {
+      id: 'pro',
       name: 'Pro',
       price: '22,90€',
       period: '/mois',
@@ -67,15 +83,23 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       color: 'from-yellow-400 to-orange-500',
       buttonColor: 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600',
       popular: false,
-      current: false
+      credits: 150
     }
   ];
 
-  const handleSelectPlan = (planName: string) => {
-    if (planName === 'Free Plan') {
+  const handleCancelSubscription = () => {
+    if (window.confirm('Êtes-vous sûr de vouloir annuler votre abonnement ? Vous perdrez l\'accès aux fonctionnalités premium.')) {
+      // Réinitialiser l'utilisateur au plan gratuit
+      updateUserPaymentStatus(false);
+      alert('Votre abonnement a été annulé. Vous êtes maintenant sur le plan gratuit.');
+    }
+  ];
+
+  const handleSelectPlan = (planId: string, planName: string) => {
+    if (planId === 'free') {
       // L'utilisateur reste sur le plan gratuit
       onBack();
-    } else if (planName === 'Starter') {
+    } else if (planId === 'starter') {
       // Rediriger vers Stripe avec l'email de l'utilisateur
       const email = currentUserEmail || userEmail || 'exemple@gmail.com';
       const encodedEmail = encodeURIComponent(email);
@@ -87,6 +111,33 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
     } else {
       // Rediriger vers le système de paiement (à implémenter)
       alert(`Redirection vers le paiement pour le plan ${planName}`);
+    }
+  };
+
+  const getPlanStatus = (planId: string) => {
+    if (planId === currentPlan) return 'current';
+    
+    const planOrder = ['free', 'starter', 'pro'];
+    const currentIndex = planOrder.indexOf(currentPlan);
+    const planIndex = planOrder.indexOf(planId);
+    
+    if (planIndex < currentIndex) return 'downgrade';
+    if (planIndex > currentIndex) return 'upgrade';
+    return 'available';
+  };
+
+  const getButtonText = (planId: string, planName: string) => {
+    const status = getPlanStatus(planId);
+    
+    switch (status) {
+      case 'current':
+        return 'Plan actuel';
+      case 'upgrade':
+        return `Passer à ${planName}`;
+      case 'downgrade':
+        return `Rétrograder vers ${planName}`;
+      default:
+        return `Choisir ${planName}`;
     }
   };
 
@@ -134,23 +185,44 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
             <p className="text-xl text-white/90 max-w-2xl mx-auto drop-shadow">
               Transformez vos photos de vêtements en images professionnelles qui boostent vos ventes
             </p>
+            
+            {/* Current Plan Display */}
+            {user && (
+              <div className="mt-6 inline-flex items-center bg-white/10 backdrop-blur-lg rounded-full px-6 py-3 border border-white/20">
+                <div className="w-3 h-3 bg-green-400 rounded-full mr-3 animate-pulse"></div>
+                <span className="text-white font-medium">
+                  Plan actuel : {currentPlan === 'free' ? 'Gratuit' : currentPlan === 'starter' ? 'Starter' : 'Pro'}
+                  {user.subscription?.creditsRemaining !== undefined && (
+                    <span className="ml-2 text-white/80">
+                      • {user.subscription.creditsRemaining} crédits restants
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Pricing Cards */}
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
             {plans.map((plan, index) => {
               const IconComponent = plan.icon;
+              const planStatus = getPlanStatus(plan.id);
+              const isCurrent = planStatus === 'current';
+              const canUpgrade = planStatus === 'upgrade';
+              const isDowngrade = planStatus === 'downgrade';
+              
               return (
                 <div
                   key={index}
                   className={`
                     relative bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 shadow-2xl
-                    ${plan.popular ? 'ring-2 ring-white/50 scale-105' : ''}
+                    ${plan.popular && !isCurrent ? 'ring-2 ring-white/50 scale-105' : ''}
+                    ${isCurrent ? 'ring-2 ring-green-400/50 scale-105' : ''}
                     hover:bg-white/20 transition-all duration-300
                   `}
                 >
                   {/* Popular Badge */}
-                  {plan.popular && (
+                  {plan.popular && !isCurrent && (
                     <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                       <div className="bg-white text-vinted-600 px-4 py-1 rounded-full text-sm font-bold shadow-lg">
                         ⭐ Le plus populaire
@@ -159,7 +231,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
                   )}
 
                   {/* Current Plan Badge */}
-                  {plan.current && (
+                  {isCurrent && (
                     <div className="absolute -top-4 right-4">
                       <div className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg">
                         Plan actuel
@@ -225,6 +297,27 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
             })}
           </div>
 
+          {/* Cancel Subscription Section */}
+          {user && user.hasPaid && currentPlan !== 'free' && (
+            <div className="mt-12 max-w-2xl mx-auto">
+              <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 text-center">
+                <h3 className="text-lg font-semibold text-white mb-3">
+                  Gérer votre abonnement
+                </h3>
+                <p className="text-white/80 text-sm mb-4">
+                  Vous pouvez annuler votre abonnement à tout moment. Vous conserverez l'accès jusqu'à la fin de votre période de facturation.
+                </p>
+                <button
+                  onClick={handleCancelSubscription}
+                  className="inline-flex items-center px-4 py-2 bg-red-500/20 text-red-300 rounded-lg border border-red-500/30 hover:bg-red-500/30 transition-colors text-sm"
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Annuler mon abonnement
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* FAQ Section */}
           <div className="mt-16 max-w-4xl mx-auto">
             <h2 className="text-2xl font-bold text-white text-center mb-8">
@@ -257,10 +350,10 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
               </div>
               <div className="bg-white/10 backdrop-blur-lg rounded-xl p-6 border border-white/20">
                 <h3 className="font-semibold text-white mb-2">
-                  Y a-t-il un engagement ?
+                  Puis-je annuler mon abonnement ?
                 </h3>
                 <p className="text-white/80 text-sm">
-                  Aucun engagement ! Vous pouvez annuler votre abonnement à tout moment.
+                  Oui, vous pouvez annuler votre abonnement à tout moment depuis cette page. Aucun engagement !
                 </p>
               </div>
             </div>
