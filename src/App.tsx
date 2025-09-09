@@ -108,6 +108,7 @@ function App() {
       
       if (result.success && result.imageUrl) {
         addDebugLog('✅ Traitement réussi !');
+        // Mettre à jour l'image générée AVANT de décrémenter les crédits
         setGeneratedImage(result.imageUrl);
         
         // Décrémenter les crédits de l'utilisateur après réception réussie
@@ -116,25 +117,12 @@ function App() {
             await decrementUserCredits(user.firestoreId, 1);
             addDebugLog('💳 Crédit déduit avec succès');
             
-            // Mettre à jour l'état local immédiatement pour l'UI
-            setUser(prevUser => {
-              if (prevUser && prevUser.subscription) {
-                return {
-                  ...prevUser,
-                  subscription: {
-                    ...prevUser.subscription,
-                    creditsRemaining: Math.max(0, prevUser.subscription.creditsRemaining - 1)
-                  }
-                };
-              }
-              return prevUser;
-            });
-            
           } catch (error) {
             addDebugLog(`⚠️ Erreur lors de la déduction du crédit: ${error}`);
           }
         }
         
+        // Passer à l'étape des résultats APRÈS avoir mis à jour l'image
         setCurrentStep('results');
       } else {
         addDebugLog(`❌ Échec du traitement: ${result.error}`);
