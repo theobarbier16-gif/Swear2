@@ -167,6 +167,25 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
         </div>
       </div>
 
+      {/* Call-to-Action Buttons */}
+      <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+        <button
+          onClick={onShowLogin}
+          className="flex items-center justify-center px-8 py-4 bg-white text-vinted-500 font-semibold rounded-xl hover:bg-white/90 transition-all duration-200 shadow-xl hover:scale-105"
+        >
+          <span className="mr-2">🎯</span>
+          Essayer gratuitement
+        </button>
+        
+        <button
+          onClick={onShowPricing}
+          className="flex items-center justify-center px-8 py-4 bg-white/20 backdrop-blur-lg text-white font-semibold rounded-xl border-2 border-white/30 hover:bg-white/30 hover:border-white/50 transition-all duration-200 shadow-xl hover:scale-105"
+        >
+          <span className="mr-2">⭐</span>
+          S'abonner
+        </button>
+      </div>
+
       {/* Error Message */}
       {processingError && (
         <div className="max-w-2xl mx-auto mb-8">
