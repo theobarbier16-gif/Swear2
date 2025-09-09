@@ -21,7 +21,36 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
     if (!user) return;
     
     try {
-      console.log(`🔄 Changement de plan: ${getCurrentPlan()} → ${newPlan}`);
+      const currentPlan = getCurrentPlan();
+      console.log(`🔄 Demande de changement de plan: ${currentPlan} → ${newPlan}`);
+      
+      // Vérification : pas de changement inutile
+      if (currentPlan === newPlan) {
+        console.log('⚠️ Plan identique, pas de changement nécessaire');
+        return;
+      }
+      
+      // Vérification de sécurité : pour les plans payants, vérifier les conditions
+      if (newPlan !== 'free') {
+        const lastStripeInteraction = localStorage.getItem('lastStripeInteraction');
+        const stripeRedirectTime = localStorage.getItem('stripeRedirectTime');
+        
+        if (!lastStripeInteraction || !stripeRedirectTime) {
+          console.log('❌ Aucune interaction Stripe récente détectée');
+          return;
+        }
+        
+        const timeSinceRedirect = Date.now() - parseInt(stripeRedirectTime);
+        if (timeSinceRedirect > 15 * 60 * 1000) { // 15 minutes max
+          console.log('❌ Redirection Stripe trop ancienne');
+          localStorage.removeItem('lastStripeInteraction');
+          localStorage.removeItem('selectedPlan');
+          localStorage.removeItem('stripeRedirectTime');
+          return;
+        }
+        
+        console.log(`✅ Interaction Stripe valide (${Math.round(timeSinceRedirect/1000)}s ago)`);
+      }
       
       // Déterminer les nouveaux crédits selon le plan
       let newCredits = 3; // Free plan par défaut
@@ -42,68 +71,115 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
           break;
       }
       
-      console.log(`💳 Nouveau plan: ${newPlan}, Crédits: ${newCredits}, Payé: ${hasPaid}`);
+      console.log(`💳 Configuration: Plan=${newPlan}, Crédits=${newCredits}, Payé=${hasPaid}`);
       
       // Mettre à jour le statut utilisateur
       await updateUserPaymentStatus(hasPaid, newPlan);
       
-      console.log(`✅ Plan mis à jour avec succès: ${newPlan}`);
+      console.log(`✅ Plan mis à jour avec succès: ${currentPlan} → ${newPlan}`);
+      
+      // Nettoyer les données temporaires après succès
+      if (newPlan !== 'free') {
+        localStorage.removeItem('lastStripeInteraction');
+        localStorage.removeItem('selectedPlan');
+        localStorage.removeItem('stripeRedirectTime');
+      }
       
       // Rafraîchir la page pour afficher les changements
       setTimeout(() => {
         window.location.reload();
-      }, 1000);
+      }, 1500);
       
     } catch (error) {
-      console.error('❌ Erreur lors du changement de plan:', error);
+      console.error('❌ Erreur critique lors du changement de plan:', error);
+      
+      // Nettoyer en cas d'erreur
+      localStorage.removeItem('lastStripeInteraction');
+      localStorage.removeItem('selectedPlan');
+      localStorage.removeItem('stripeRedirectTime');
     }
   };
 
   // Vérification automatique du paiement au chargement de la page
   useEffect(() => {
     const checkPaymentStatus = async () => {
-      // Si l'utilisateur vient de Stripe (URL contient des paramètres de succès)
+      // Vérification stricte : seulement si l'utilisateur vient vraiment de Stripe
       const urlParams = new URLSearchParams(window.location.search);
-      const hasStripeSuccess = urlParams.has('success') || urlParams.has('session_id') || 
-                              window.location.href.includes('stripe') ||
-                              document.referrer.includes('stripe.com');
       
-      if (hasStripeSuccess && user && !user.hasPaid) {
-        console.log('🔍 Détection possible de retour Stripe, vérification du paiement...');
+      // Vérifications strictes pour confirmer un paiement réussi
+      const hasStripeSuccess = (
+        // URL contient des paramètres de succès Stripe
+        (urlParams.has('success') && urlParams.get('success') === 'true') ||
+        urlParams.has('session_id') ||
+        // ET l'utilisateur vient bien de Stripe
+        (document.referrer.includes('stripe.com') || document.referrer.includes('checkout.stripe.com'))
+      );
+      
+      // Vérification supplémentaire : timestamp récent
+      const lastStripeInteraction = localStorage.getItem('lastStripeInteraction');
+      const isRecentInteraction = lastStripeInteraction && 
+        (Date.now() - parseInt(lastStripeInteraction)) < 10 * 60 * 1000; // 10 minutes max
+      
+      if (hasStripeSuccess && user && isRecentInteraction) {
+        console.log('🔍 Paiement Stripe détecté - Vérification en cours...');
+        
+        // Vérification supplémentaire : le plan sélectionné doit exister
+        const selectedPlan = localStorage.getItem('selectedPlan');
+        if (!selectedPlan || !['starter', 'pro'].includes(selectedPlan)) {
+          console.log('❌ Plan sélectionné invalide, annulation');
+          return;
+        }
         
         // En mode test, simuler la vérification
         if (STRIPE_TEST_MODE) {
-          console.log('🧪 Mode test - Simulation de vérification de paiement');
+          console.log('🧪 Mode test - Vérification simulée du paiement Stripe');
           
-          // Simuler un délai de vérification
+          // Simuler un délai de vérification plus réaliste
           setTimeout(async () => {
             try {
-              // Déterminer le plan basé sur l'URL ou les paramètres
-              let planType = 'starter'; // Par défaut
+              // Double vérification du plan
+              let planType = selectedPlan;
               
-              if (window.location.href.includes('pro') || urlParams.get('plan') === 'pro') {
+              // Vérification croisée avec l'URL
+              if ((window.location.href.includes('pro') || urlParams.get('plan') === 'pro') && selectedPlan === 'pro') {
                 planType = 'pro';
-              } else if (window.location.href.includes('starter') || urlParams.get('plan') === 'starter') {
+              } else if ((window.location.href.includes('starter') || urlParams.get('plan') === 'starter') && selectedPlan === 'starter') {
                 planType = 'starter';
+              } else {
+                console.log('❌ Incohérence entre plan sélectionné et URL, annulation');
+                return;
               }
               
-              // Vérifier aussi le localStorage pour le plan sélectionné
-              const selectedPlan = localStorage.getItem('selectedPlan');
-              if (selectedPlan && (selectedPlan === 'starter' || selectedPlan === 'pro')) {
-                planType = selectedPlan;
+              console.log(`✅ Paiement vérifié pour le plan: ${planType}`);
+              
+              // Vérification finale : l'utilisateur n'a pas déjà ce plan
+              if (user.subscription?.plan === planType && user.hasPaid) {
+                console.log('⚠️ Utilisateur a déjà ce plan, pas de changement');
+                return;
               }
               
-              console.log(`✅ Simulation: Paiement ${planType} détecté, activation du plan...`);
+              console.log(`🔄 Activation du plan ${planType} après vérification réussie`);
               await handlePlanChange(planType);
               
               // Nettoyer l'URL
               window.history.replaceState({}, document.title, window.location.pathname);
               localStorage.removeItem('selectedPlan');
+              localStorage.removeItem('lastStripeInteraction');
               
             } catch (error) {
-              console.error('Erreur lors de l\'activation du plan:', error);
+              console.error('❌ Erreur lors de l\'activation du plan:', error);
             }
-          }, 2000);
+          }, 3000); // Délai plus long pour simulation réaliste
+        } else {
+          // En mode production, ici on ferait un appel API pour vérifier le paiement
+          console.log('🔍 Mode production - Vérification API requise');
+          // TODO: Implémenter la vérification côté serveur
+        }
+      } else {
+        if (hasStripeSuccess) {
+          console.log('⚠️ Retour Stripe détecté mais conditions non remplies');
+          console.log('- User:', !!user);
+          console.log('- Recent interaction:', !!isRecentInteraction);
         }
       }
     };
@@ -113,36 +189,49 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
 
   // Vérification périodique du statut de paiement
   useEffect(() => {
-    if (!user || user.hasPaid) return;
+    if (!user) return;
 
     const interval = setInterval(async () => {
-      console.log('🔄 Vérification périodique du statut de paiement...');
-      
-      // En mode test, vérifier s'il y a eu une interaction récente avec Stripe
+      // Seulement vérifier s'il y a une interaction récente
       const lastStripeInteraction = localStorage.getItem('lastStripeInteraction');
-      if (lastStripeInteraction) {
-        const timeSinceInteraction = Date.now() - parseInt(lastStripeInteraction);
+      if (!lastStripeInteraction) return;
+      
+      const timeSinceInteraction = Date.now() - parseInt(lastStripeInteraction);
+      
+      // Si plus de 10 minutes, arrêter la vérification
+      if (timeSinceInteraction > 10 * 60 * 1000) {
+        console.log('⏰ Timeout de vérification atteint, nettoyage');
+        localStorage.removeItem('lastStripeInteraction');
+        localStorage.removeItem('selectedPlan');
+        return;
+      }
+      
+      // Vérifier seulement si moins de 5 minutes ET qu'on a des paramètres de succès
+      if (timeSinceInteraction < 5 * 60 * 1000) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const hasStripeSuccess = urlParams.has('success') || urlParams.has('session_id');
         
-        // Si moins de 5 minutes depuis la dernière interaction Stripe
-        if (timeSinceInteraction < 5 * 60 * 1000) {
-          console.log('🎯 Interaction Stripe récente détectée, vérification...');
+        if (hasStripeSuccess) {
+          console.log('🔄 Vérification périodique - Paramètres Stripe détectés');
           
-          // Récupérer le plan sélectionné
-          const selectedPlan = localStorage.getItem('selectedPlan') || 'starter';
-          
-          if (STRIPE_TEST_MODE) {
-            // Simuler la vérification du paiement
-            try {
-              await handlePlanChange(selectedPlan);
-              localStorage.removeItem('lastStripeInteraction');
-              localStorage.removeItem('selectedPlan');
-            } catch (error) {
-              console.error('Erreur vérification:', error);
+          const selectedPlan = localStorage.getItem('selectedPlan');
+          if (selectedPlan && ['starter', 'pro'].includes(selectedPlan)) {
+            console.log(`🎯 Tentative d'activation du plan: ${selectedPlan}`);
+            
+            if (STRIPE_TEST_MODE) {
+              try {
+                await handlePlanChange(selectedPlan);
+                localStorage.removeItem('lastStripeInteraction');
+                localStorage.removeItem('selectedPlan');
+                console.log('✅ Plan activé avec succès');
+              } catch (error) {
+                console.error('❌ Erreur activation:', error);
+              }
             }
           }
         }
       }
-    }, 10000); // Vérifier toutes les 10 secondes
+    }, 15000); // Vérifier toutes les 15 secondes (moins fréquent)
 
     return () => clearInterval(interval);
   }, [user, updateUserPaymentStatus]);
@@ -277,14 +366,17 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       // Plan gratuit - pas de paiement requis
       if (user && user.hasPaid) {
         // Downgrade vers le plan gratuit
+        console.log('🔄 Downgrade vers plan gratuit confirmé');
         handlePlanChange('free');
       } else {
         onBack();
       }
     } else if (planId === 'starter') {
-      // Marquer l'interaction avec Stripe
+      // Marquer l'interaction avec Stripe avec timestamp précis
+      console.log('🚀 Redirection vers Stripe Starter');
       localStorage.setItem('lastStripeInteraction', Date.now().toString());
       localStorage.setItem('selectedPlan', 'starter');
+      localStorage.setItem('stripeRedirectTime', Date.now().toString());
       
       // Redirection vers Stripe pour le plan Starter
       const email = currentUserEmail || userEmail || 'exemple@gmail.com';
@@ -293,9 +385,11 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       window.open(stripeUrl, '_blank');
       
     } else if (planId === 'pro') {
-      // Marquer l'interaction avec Stripe
+      // Marquer l'interaction avec Stripe avec timestamp précis
+      console.log('🚀 Redirection vers Stripe Pro');
       localStorage.setItem('lastStripeInteraction', Date.now().toString());
       localStorage.setItem('selectedPlan', 'pro');
+      localStorage.setItem('stripeRedirectTime', Date.now().toString());
       
       // Redirection vers Stripe pour le plan Pro
       const email = currentUserEmail || userEmail || 'exemple@gmail.com';
