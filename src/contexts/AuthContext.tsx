@@ -281,7 +281,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     if (!user) return;
 
     try {
-      console.log(`💳 [${STRIPE_TEST_MODE ? 'TEST' : 'PROD'}] Updating payment status: ${hasPaid}, plan: ${plan}`);
+      console.log(`💳 Updating payment status: ${hasPaid}, plan: ${plan}`);
       const maxCredits = getCreditsForPlan(plan);
       const updatedSubscription = {
         plan: plan as 'free' | 'starter' | 'pro',
@@ -302,7 +302,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         subscription: updatedSubscription
       } : null);
 
-      console.log(`✅ [${STRIPE_TEST_MODE ? 'TEST' : 'PROD'}] User payment status updated: ${hasPaid ? 'paid' : 'free'}, plan: ${plan}`);
+      console.log(`✅ User payment status updated: ${hasPaid ? 'paid' : 'free'}, plan: ${plan}`);
     } catch (error) {
       console.error('Error updating payment status:', error);
       setError('Erreur lors de la mise à jour du statut de paiement');

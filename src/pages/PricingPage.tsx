@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowLeft, Check, Sparkles, Zap, Crown, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useEffect } from 'react';
 
 // Mode test Stripe - permet la simulation de paiements
 const STRIPE_TEST_MODE = true;
@@ -13,7 +14,86 @@ interface PricingPageProps {
 
 const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUserEmail }) => {
   const { user } = useAuth();
+  const { updateUserPaymentStatus } = useAuth();
 
+  // Vérification automatique du paiement au chargement de la page
+  useEffect(() => {
+    const checkPaymentStatus = async () => {
+      // Si l'utilisateur vient de Stripe (URL contient des paramètres de succès)
+      const urlParams = new URLSearchParams(window.location.search);
+      const hasStripeSuccess = urlParams.has('success') || urlParams.has('session_id') || 
+                              window.location.href.includes('stripe') ||
+                              document.referrer.includes('stripe.com');
+      
+      if (hasStripeSuccess && user && !user.hasPaid) {
+        console.log('🔍 Détection possible de retour Stripe, vérification du paiement...');
+        
+        // En mode test, simuler la vérification
+        if (STRIPE_TEST_MODE) {
+          console.log('🧪 Mode test - Simulation de vérification de paiement');
+          
+          // Simuler un délai de vérification
+          setTimeout(async () => {
+            try {
+              // Déterminer le plan basé sur l'URL ou les paramètres
+              let planType = 'starter'; // Par défaut
+              
+              if (window.location.href.includes('pro') || urlParams.get('plan') === 'pro') {
+                planType = 'pro';
+              }
+              
+              console.log(`✅ Simulation: Paiement ${planType} détecté, activation du plan...`);
+              await updateUserPaymentStatus(true, planType);
+              
+              // Nettoyer l'URL
+              window.history.replaceState({}, document.title, window.location.pathname);
+              
+              // Rafraîchir pour afficher les changements
+              window.location.reload();
+              
+            } catch (error) {
+              console.error('Erreur lors de l\'activation du plan:', error);
+            }
+          }, 2000);
+        }
+      }
+    };
+
+    checkPaymentStatus();
+  }, [user, updateUserPaymentStatus]);
+
+  // Vérification périodique du statut de paiement
+  useEffect(() => {
+    if (!user || user.hasPaid) return;
+
+    const interval = setInterval(async () => {
+      console.log('🔄 Vérification périodique du statut de paiement...');
+      
+      // En mode test, vérifier s'il y a eu une interaction récente avec Stripe
+      const lastStripeInteraction = localStorage.getItem('lastStripeInteraction');
+      if (lastStripeInteraction) {
+        const timeSinceInteraction = Date.now() - parseInt(lastStripeInteraction);
+        
+        // Si moins de 5 minutes depuis la dernière interaction Stripe
+        if (timeSinceInteraction < 5 * 60 * 1000) {
+          console.log('🎯 Interaction Stripe récente détectée, vérification...');
+          
+          if (STRIPE_TEST_MODE) {
+            // Simuler la vérification du paiement
+            try {
+              await updateUserPaymentStatus(true, 'starter');
+              localStorage.removeItem('lastStripeInteraction');
+              window.location.reload();
+            } catch (error) {
+              console.error('Erreur vérification:', error);
+            }
+          }
+        }
+      }
+    }, 10000); // Vérifier toutes les 10 secondes
+
+    return () => clearInterval(interval);
+  }, [user, updateUserPaymentStatus]);
   // Fonction pour vérifier automatiquement les paiements test
   const checkTestPayment = async (planId: string) => {
     if (!STRIPE_TEST_MODE) return;
@@ -145,31 +225,27 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       // Plan gratuit - pas de paiement requis
       onBack();
     } else if (planId === 'starter') {
+      // Marquer l'interaction avec Stripe
+      localStorage.setItem('lastStripeInteraction', Date.now().toString());
+      localStorage.setItem('selectedPlan', 'starter');
+      
       // Redirection vers Stripe pour le plan Starter
       const email = currentUserEmail || userEmail || 'exemple@gmail.com';
       const encodedEmail = encodeURIComponent(email);
       const stripeUrl = `https://buy.stripe.com/test_fZucMYcHubsj23adLG2VG00?prefilled_email=${encodedEmail}`;
       window.open(stripeUrl, '_blank');
       
-      // En mode test, démarrer la vérification simulée
-      if (STRIPE_TEST_MODE) {
-        console.log('🧪 [MODE TEST] Démarrage vérification paiement simulée...');
-        checkTestPayment(planId);
-      }
-      
     } else if (planId === 'pro') {
+      // Marquer l'interaction avec Stripe
+      localStorage.setItem('lastStripeInteraction', Date.now().toString());
+      localStorage.setItem('selectedPlan', 'pro');
+      
       // Redirection vers Stripe pour le plan Pro
       const email = currentUserEmail || userEmail || 'exemple@gmail.com';
       const encodedEmail = encodeURIComponent(email);
       const stripeUrl = `https://buy.stripe.com/test_eVqfZa22Q7c3bDK4b62VG01?prefilled_email=${encodedEmail}`;
       
       window.open(stripeUrl, '_blank');
-      
-      // En mode test, démarrer la vérification simulée
-      if (STRIPE_TEST_MODE) {
-        console.log('🧪 [MODE TEST] Démarrage vérification paiement simulée...');
-        checkTestPayment(planId);
-      }
     }
   };
 
