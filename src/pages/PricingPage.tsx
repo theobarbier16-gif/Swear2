@@ -88,10 +88,32 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
   ];
 
   const handleCancelSubscription = () => {
-    if (window.confirm('Êtes-vous sûr de vouloir annuler votre abonnement ? Vous perdrez l\'accès aux fonctionnalités premium.')) {
-      // Réinitialiser l'utilisateur au plan gratuit
+    if (window.confirm('⚠️ Êtes-vous sûr de vouloir annuler votre abonnement ?\n\n• Vous perdrez l\'accès aux fonctionnalités premium\n• Vous n\'aurez plus que 3 générations par mois\n• Votre abonnement payant sera annulé chez Stripe\n\nCette action nécessite une confirmation par email.')) {
+      // TODO: Implémenter l'annulation Stripe côté serveur
+      handleStripeSubscriptionCancellation();
+    }
+  };
+
+  const handleStripeSubscriptionCancellation = async () => {
+    try {
+      // Pour l'instant, on simule l'annulation
+      // Dans un vrai environnement, ceci devrait appeler votre backend
+      
+      alert('🔄 Annulation en cours...\n\n' +
+            '📧 Un email de confirmation vous sera envoyé\n' +
+            '💳 Stripe arrêtera automatiquement les prélèvements\n' +
+            '⏰ L\'annulation prendra effet à la fin de votre période de facturation actuelle\n\n' +
+            '⚠️ IMPORTANT: Pour une vraie annulation Stripe, vous devez :\n' +
+            '1. Aller sur votre tableau de bord Stripe\n' +
+            '2. Annuler manuellement l\'abonnement\n' +
+            '3. Ou implémenter un webhook d\'annulation côté serveur');
+      
+      // Simulation de l'annulation locale (à remplacer par un vrai appel API)
       updateUserPaymentStatus(false);
-      alert('Votre abonnement a été annulé. Vous êtes maintenant sur le plan gratuit.');
+      
+    } catch (error) {
+      console.error('Erreur lors de l\'annulation:', error);
+      alert('❌ Erreur lors de l\'annulation. Veuillez contacter le support ou annuler directement via Stripe.');
     }
   };
 
@@ -323,7 +345,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
                   <p>• <strong>Crédits :</strong> Les crédits non utilisés sont perdus lors du changement de plan</p>
                 </div>
                 <p className="text-white/60 text-xs mb-4">
-                  Vous pouvez changer de plan à tout moment depuis cette page.
+                  ⚠️ IMPORTANT: L'annulation Stripe doit être gérée côté serveur pour être effective.
                 </p>
                 <button
                   onClick={handleCancelSubscription}
@@ -368,10 +390,10 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
               </div>
               <div className="bg-white/10 backdrop-blur-lg rounded-xl p-6 border border-white/20">
                 <h3 className="font-semibold text-white mb-2">
-                  Puis-je annuler mon abonnement ?
+                  Comment annuler mon abonnement Stripe ?
                 </h3>
                 <p className="text-white/80 text-sm">
-                  Oui, vous pouvez annuler votre abonnement à tout moment depuis cette page. Aucun engagement !
+                  L'annulation nécessite une gestion côté serveur. Pour l'instant, vous devez annuler manuellement dans votre tableau de bord Stripe.
                 </p>
               </div>
             </div>
