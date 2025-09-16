@@ -7,6 +7,12 @@ import * as express from 'express';
 admin.initializeApp();
 
 // Initialize Stripe with the provided API key
+
+if (!stripeSecretKey) {
+  throw new Error('STRIPE_SECRET_KEY is required');
+}
+
+if (!stripeWebhookSecret) {
   throw new Error('STRIPE_WEBHOOK_SECRET is required');
 }
 
@@ -170,6 +176,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   let credits = 25;
   
   if (amount >= 2290) { // 22.90€ en centimes
+  }
   // Récupérer les informations depuis les métadonnées
   const planType = session.metadata?.planType || 'starter';
   const credits = parseInt(session.metadata?.credits || '25');
@@ -330,7 +337,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
             subscription: {
               plan: 'free',
               creditsRemaining: 3,
-        console.log(`✅ Utilisateur ${userId} mis à jour: plan ${planType} (${credits} crédits)`);
+              maxCredits: 3,
               renewalDate: admin.firestore.Timestamp.now(),
               lastUpdated: admin.firestore.Timestamp.now(),
               previousPlan: currentUserData.subscription?.plan || 'unknown',

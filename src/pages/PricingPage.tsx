@@ -7,6 +7,16 @@ import * as express from 'express';
 admin.initializeApp();
 
 // Initialize Stripe with the provided API key
+const stripeSecretKey = functions.config().stripe.secret_key;
+const stripeWebhookSecret = functions.config().stripe.webhook_secret;
+
+if (!stripeSecretKey) {
+  throw new Error('STRIPE_SECRET_KEY is required');
+}
+
+if (!stripeWebhookSecret) {
+  throw new Error('STRIPE_WEBHOOK_SECRET is required');
+}
 
 const stripe = new Stripe(stripeSecretKey, {
   apiVersion: '2023-10-16',
@@ -162,12 +172,6 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     return;
   }
 
-  // Déterminer le plan basé sur le montant
-  const amount = session.amount_total || 0;
-  let plan = 'starter';
-  let credits = 25;
-  
-  if (amount >= 2290) { // 22.90€ en centimes
   // Récupérer les informations depuis les métadonnées
   const planType = session.metadata?.planType || 'starter';
   const credits = parseInt(session.metadata?.credits || '25');
@@ -204,7 +208,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     const hadPaidBefore = currentUserData.hasPaid || false;
     
     if (hadPaidBefore && currentPlan !== 'free') {
-      console.log(`🔄 Changement d'abonnement détecté: ${currentPlan} → ${plan}`);
+      console.log(`🔄 Changement d'abonnement détecté: ${currentPlan} → ${planType}`);
       
       // Si l'utilisateur avait déjà un abonnement payant, on doit annuler l'ancien
       if (currentUserData.subscription?.stripeCustomerId) {
@@ -227,7 +231,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         }
       }
       
-      console.log(`✅ Ancien plan ${currentPlan} remplacé par ${plan}`);
+      console.log(`✅ Ancien plan ${currentPlan} remplacé par ${planType}`);
     } else if (!hadPaidBefore) {
       console.log('🆕 Premier abonnement payant créé');
     } else {
@@ -236,7 +240,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
     // Mettre à jour l'abonnement utilisateur
     const subscriptionData = {
-      plan: plan,
+      plan: planType,
       creditsRemaining: credits,
       maxCredits: credits,
       renewalDate: admin.firestore.Timestamp.now(),
@@ -256,7 +260,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         subscription: subscriptionData
       });
 
-    console.log(`✅ Utilisateur ${userId} mis à jour: plan ${plan} (${credits} crédits)`);
+    console.log(`✅ Utilisateur ${userId} mis à jour: plan ${planType} (${credits} crédits)`);
     console.log('💳 Accès complet activé pour l\'utilisateur');
 
     // Optionnel: Envoyer un email de confirmation
@@ -328,7 +332,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
             subscription: {
               plan: 'free',
               creditsRemaining: 3,
-        console.log(`✅ Utilisateur ${userId} mis à jour: plan ${planType} (${credits} crédits)`);
+              maxCredits: 3,
               renewalDate: admin.firestore.Timestamp.now(),
               lastUpdated: admin.firestore.Timestamp.now(),
               previousPlan: currentUserData.subscription?.plan || 'unknown',
