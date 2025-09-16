@@ -400,7 +400,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       // Redirection vers Stripe pour le plan Pro
       const email = currentUserEmail || userEmail || 'exemple@gmail.com';
       const encodedEmail = encodeURIComponent(email);
-      const stripeUrl = `https://buy.stripe.com/test_eVqfZa22Q7c3bDK4b62VG01?prefilled_email=${encodedEmail}`;
+      const stripeUrl = `https://buy.stripe.com/test_3cI14gdLy0NF37eePK2VG02?prefilled_email=${encodedEmail}`;
       
       window.open(stripeUrl, '_blank');
     }
