@@ -7,12 +7,16 @@ import * as express from 'express';
 admin.initializeApp();
 
 // Initialize Stripe with the provided API key
-            <div className="mt-4 text-center">
-              <div className="inline-flex items-center px-4 py-2 bg-blue-500/20 border border-blue-400/30 rounded-lg text-blue-200 text-sm">
-                💡 Vous pouvez changer de plan à tout moment - l'ancien sera automatiquement annulé
-              </div>
-            </div>
-          )}
+const stripeSecretKey = functions.config().stripe?.secret_key;
+const stripeWebhookSecret = functions.config().stripe?.webhook_secret;
+
+if (!stripeSecretKey) {
+            // <div className="mt-4 text-center">
+              // <div className="inline-flex items-center px-4 py-2 bg-blue-500/20 border border-blue-400/30 rounded-lg text-blue-200 text-sm">
+                // 💡 Vous pouvez changer de plan à tout moment - l'ancien sera automatiquement annulé
+              // </div>
+            // </div>
+          // )}
   throw new Error('STRIPE_SECRET_KEY is required');
 }
 
@@ -243,7 +247,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         }
       }
       
-      console.log(`✅ Ancien plan ${currentPlan} remplacé par ${planFromMetadata}`);
+      console.log(`✅ Ancien plan ${currentPlan} remplacé par ${planType}`);
     } else if (!hadPaidBefore) {
       console.log('🆕 Premier abonnement payant créé');
     } else {
@@ -252,7 +256,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
     // Mettre à jour l'abonnement utilisateur
     const subscriptionData = {
-      plan: planFromMetadata,
+      plan: planType,
       creditsRemaining: creditsFromMetadata,
       maxCredits: creditsFromMetadata,
       renewalDate: admin.firestore.Timestamp.now(),
@@ -272,7 +276,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         subscription: subscriptionData
       });
 
-    console.log(`✅ Utilisateur ${userId} mis à jour: plan ${planFromMetadata} (${creditsFromMetadata} crédits)`);
+    console.log(`✅ Utilisateur ${userId} mis à jour: plan ${planType} (${creditsFromMetadata} crédits)`);
     console.log('💳 Accès complet activé pour l\'utilisateur');
 
     // Optionnel: Envoyer un email de confirmation
