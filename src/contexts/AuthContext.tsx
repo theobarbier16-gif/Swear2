@@ -283,12 +283,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     try {
       console.log(`💳 Updating payment status: ${hasPaid}, plan: ${plan}`);
+      
+      // Si on passe au plan gratuit, c'est une annulation
+      if (plan === 'free' && user.hasPaid) {
+        console.log('🚫 Annulation d\'abonnement - passage au plan gratuit');
+      }
+      
       const maxCredits = getCreditsForPlan(plan);
       const updatedSubscription = {
         plan: plan as 'free' | 'starter' | 'pro',
         creditsRemaining: maxCredits,
         maxCredits: maxCredits,
-        renewalDate: new Date()
+        renewalDate: new Date(),
+        lastUpdated: new Date(),
+        ...(plan === 'free' && user.hasPaid ? { 
+          downgradedAt: new Date(),
+          previousPlan: user.subscription?.plan || 'unknown'
+        } : {})
       };
 
       await updateDoc(doc(db, 'users', user.uid), {
@@ -303,7 +314,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         subscription: updatedSubscription
       } : null);
 
-      console.log(`✅ User payment status updated: ${hasPaid ? 'paid' : 'free'}, plan: ${plan}`);
+      console.log(`✅ Statut utilisateur mis à jour: ${hasPaid ? 'payant' : 'gratuit'}, plan: ${plan}`);
+      
+      if (plan === 'free' && !hasPaid) {
+        console.log('📉 Utilisateur remis en plan gratuit avec 3 crédits');
+      }
     } catch (error) {
       console.error('Error updating payment status:', error);
       setError('Erreur lors de la mise à jour du statut de paiement');

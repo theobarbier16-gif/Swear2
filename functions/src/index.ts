@@ -137,12 +137,39 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     
     console.log('👤 Utilisateur trouvé:', userId);
     
-    // Vérifier si l'utilisateur avait déjà un abonnement
-    if (currentUserData.hasPaid && currentUserData.subscription?.plan) {
-      console.log(`🔄 Changement d'abonnement: ${currentUserData.subscription.plan} → ${plan}`);
-      console.log('❌ Ancien abonnement automatiquement remplacé');
+    // Gérer les changements d'abonnement
+    const currentPlan = currentUserData.subscription?.plan || 'free';
+    const hadPaidBefore = currentUserData.hasPaid || false;
+    
+    if (hadPaidBefore && currentPlan !== 'free') {
+      console.log(`🔄 Changement d'abonnement détecté: ${currentPlan} → ${plan}`);
+      
+      // Si l'utilisateur avait déjà un abonnement payant, on doit annuler l'ancien
+      if (currentUserData.subscription?.stripeCustomerId) {
+        console.log('🚫 Tentative d\'annulation de l\'ancien abonnement Stripe...');
+        try {
+          // Récupérer tous les abonnements actifs du client
+          const subscriptions = await stripe.subscriptions.list({
+            customer: currentUserData.subscription.stripeCustomerId,
+            status: 'active',
+          });
+          
+          // Annuler tous les abonnements actifs
+          for (const subscription of subscriptions.data) {
+            await stripe.subscriptions.cancel(subscription.id);
+            console.log(`✅ Abonnement ${subscription.id} annulé`);
+          }
+        } catch (error) {
+          console.error('⚠️ Erreur lors de l\'annulation de l\'ancien abonnement:', error);
+          // On continue quand même pour activer le nouveau plan
+        }
+      }
+      
+      console.log(`✅ Ancien plan ${currentPlan} remplacé par ${plan}`);
+    } else if (!hadPaidBefore) {
+      console.log('🆕 Premier abonnement payant créé');
     } else {
-      console.log('🆕 Nouvel abonnement créé');
+      console.log('🔄 Réactivation d\'un compte précédemment payant');
     }
 
     // Mettre à jour l'abonnement utilisateur
@@ -152,9 +179,11 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       maxCredits: credits,
       renewalDate: admin.firestore.Timestamp.now(),
       stripeSessionId: session.id,
-      previousPlan: currentUserData.subscription?.plan || null,
+      previousPlan: currentPlan,
       upgradedAt: admin.firestore.Timestamp.now(),
-      lastUpdated: admin.firestore.Timestamp.now()
+      lastUpdated: admin.firestore.Timestamp.now(),
+      // Stocker l'ID client Stripe pour futures annulations
+      stripeCustomerId: session.customer
     };
 
     await admin.firestore()
@@ -205,8 +234,8 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   console.log('❌ Traitement customer.subscription.deleted');
   console.log('🆔 Subscription ID:', subscription.id);
   
-  // Logique pour les annulations d'abonnement
-  // Remettre l'utilisateur en plan gratuit
+  console.log('🔄 Annulation d\'abonnement - remise en plan gratuit');
+  
   try {
     const customerId = subscription.customer as string;
     
@@ -214,6 +243,8 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
     const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
     
     if (customer.email) {
+      console.log(`📧 Recherche utilisateur avec email: ${customer.email}`);
+      
       const usersSnapshot = await admin.firestore()
         .collection('users')
         .where('email', '==', customer.email)
@@ -222,6 +253,10 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 
       if (!usersSnapshot.empty) {
         const userDoc = usersSnapshot.docs[0];
+        const currentUserData = userDoc.data();
+        
+        console.log(`👤 Utilisateur trouvé: ${userDoc.id}`);
+        console.log(`📋 Plan actuel: ${currentUserData.subscription?.plan || 'unknown'}`);
         
         await admin.firestore()
           .collection('users')
@@ -233,12 +268,19 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
               creditsRemaining: 3,
               maxCredits: 3,
               renewalDate: admin.firestore.Timestamp.now(),
-              lastUpdated: admin.firestore.Timestamp.now()
+              lastUpdated: admin.firestore.Timestamp.now(),
+              previousPlan: currentUserData.subscription?.plan || 'unknown',
+              downgradedAt: admin.firestore.Timestamp.now(),
+              cancelledSubscriptionId: subscription.id
             }
           });
 
-        console.log(`✅ Utilisateur ${userDoc.id} remis en plan gratuit`);
+        console.log(`✅ Utilisateur ${userDoc.id} remis en plan gratuit (3 crédits)`);
+      } else {
+        console.error(`❌ Aucun utilisateur trouvé avec l'email: ${customer.email}`);
       }
+    } else {
+      console.error('❌ Aucun email trouvé pour le client Stripe');
     }
   } catch (error) {
     console.error('❌ Erreur annulation abonnement:', error);

@@ -371,20 +371,43 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
     if (planId === 'free') {
       // Plan gratuit - pas de paiement requis
       if (user && user.hasPaid) {
-        // Downgrade vers le plan gratuit - annuler l'abonnement actuel
-        console.log('🔄 Downgrade vers plan gratuit confirmé');
-        console.log('❌ Annulation de l\'abonnement actuel');
-        handlePlanChange('free');
+        // Downgrade vers le plan gratuit - confirmer avec l'utilisateur
+        const confirmDowngrade = window.confirm(
+          `Êtes-vous sûr de vouloir annuler votre abonnement ${user.subscription?.plan === 'pro' ? 'Pro' : 'Starter'} et revenir au plan gratuit ?\n\n` +
+          `Vous perdrez l'accès à vos crédits actuels (${user.subscription?.creditsRemaining || 0} restants) et serez limité à 3 crédits par mois.\n\n` +
+          `Cette action est irréversible.`
+        );
+        
+        if (confirmDowngrade) {
+          console.log('🔄 Downgrade vers plan gratuit confirmé par l\'utilisateur');
+          handlePlanChange('free');
+        } else {
+          console.log('❌ Downgrade annulé par l\'utilisateur');
+        }
       } else {
         onBack();
       }
     } else if (planId === 'starter') {
       // Vérifier si l'utilisateur a déjà un abonnement
       if (user?.hasPaid && user?.subscription?.plan === 'pro') {
-        console.log('🔄 Changement Pro → Starter (downgrade)');
-        console.log('❌ Annulation abonnement Pro, activation Starter');
+        // Downgrade Pro → Starter
+        const confirmDowngrade = window.confirm(
+          `Vous allez passer du plan Pro au plan Starter.\n\n` +
+          `• Vos crédits actuels (${user.subscription?.creditsRemaining || 0}) seront remplacés par 25 crédits\n` +
+          `• Votre abonnement Pro sera automatiquement annulé\n` +
+          `• Le nouveau prix sera de 9,90€/mois\n\n` +
+          `Continuer ?`
+        );
+        
+        if (!confirmDowngrade) {
+          console.log('❌ Changement Pro → Starter annulé');
+          return;
+        }
+        
+        console.log('🔄 Changement Pro → Starter confirmé');
       } else if (user?.hasPaid && user?.subscription?.plan === 'starter') {
         console.log('⚠️ Utilisateur déjà sur plan Starter');
+        alert('Vous êtes déjà abonné au plan Starter !');
         return;
       } else {
         console.log('🚀 Nouveau abonnement Starter');
@@ -402,10 +425,24 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
     } else if (planId === 'pro') {
       // Vérifier si l'utilisateur a déjà un abonnement
       if (user?.hasPaid && user?.subscription?.plan === 'starter') {
-        console.log('🔄 Changement Starter → Pro (upgrade)');
-        console.log('❌ Annulation abonnement Starter, activation Pro');
+        // Upgrade Starter → Pro
+        const confirmUpgrade = window.confirm(
+          `Vous allez passer du plan Starter au plan Pro.\n\n` +
+          `• Vos crédits actuels (${user.subscription?.creditsRemaining || 0}) seront remplacés par 150 crédits\n` +
+          `• Votre abonnement Starter sera automatiquement annulé\n` +
+          `• Le nouveau prix sera de 22,90€/mois\n\n` +
+          `Continuer ?`
+        );
+        
+        if (!confirmUpgrade) {
+          console.log('❌ Changement Starter → Pro annulé');
+          return;
+        }
+        
+        console.log('🔄 Changement Starter → Pro confirmé');
       } else if (user?.hasPaid && user?.subscription?.plan === 'pro') {
         console.log('⚠️ Utilisateur déjà sur plan Pro');
+        alert('Vous êtes déjà abonné au plan Pro !');
         return;
       } else {
         console.log('🚀 Nouveau abonnement Pro');
@@ -616,15 +653,17 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
                   🔗 Gestion de votre abonnement
                 </h3>
                 <p className="text-white/80 text-sm mb-4">
-                  Vous pouvez changer de plan à tout moment. L'ancien abonnement sera automatiquement 
-                  annulé et remplacé par le nouveau. Vos crédits sont mis à jour instantanément.
+                  <strong>⚠️ Important :</strong> Changer de plan annule automatiquement votre abonnement actuel.
+                  <br />• <strong>Upgrade :</strong> Vos crédits sont immédiatement remplacés par ceux du nouveau plan
+                  <br />• <strong>Downgrade :</strong> Vous perdez vos crédits actuels
+                  <br />• <strong>Annulation :</strong> Retour au plan gratuit (3 crédits/mois)
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                   <button
                     onClick={() => handlePlanChange('free')}
                     className="inline-flex items-center px-4 py-2 bg-red-500/20 text-red-300 rounded-lg border border-red-500/30 hover:bg-red-500/30 transition-colors text-sm"
                   >
-                    ❌ Annuler abonnement
+                    ❌ Passer au plan gratuit
                   </button>
                   <a
                     href="https://billing.stripe.com/p/login/test_00000000000000000000000000"
@@ -635,9 +674,15 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
                     🔗 Gérer sur Stripe
                   </a>
                 </div>
-                <div className="mt-3 p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
+                <div className="mt-4 p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
                   <p className="text-xs text-yellow-300">
-                    ⚠️ Changement d'abonnement : L'ancien sera automatiquement annulé
+                    ⚠️ <strong>Un seul abonnement par utilisateur :</strong> Tout changement annule l'abonnement précédent
+                  </p>
+                </div>
+                <div className="mt-3 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                  <p className="text-xs text-blue-300">
+                    💡 <strong>Plan actuel :</strong> {currentPlan === 'starter' ? 'Starter' : 'Pro'} • 
+                    {user.subscription?.creditsRemaining || 0} crédits restants
                   </p>
                 </div>
                 <div className="mt-4 p-3 bg-white/5 rounded-lg">
