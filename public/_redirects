@@ -1,0 +1,5 @@
+# Redirect webhook calls to Supabase edge function
+/webhooks/stripe https://swear-30c84.supabase.co/functions/v1/stripe-webhook 200
+
+# SPA fallback
+/*    /index.html   200
