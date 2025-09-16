@@ -44,13 +44,19 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.type.startsWith('image/')) {
-      // Vérifier si l'utilisateur est connecté et a des crédits
+      // Vérifier si l'utilisateur est connecté
       if (!isAuthenticated) {
         onShowLogin?.();
         return;
       }
       
-      // Vérifier seulement les crédits (peu importe le plan)
+      // Vérifier si l'utilisateur a payé ET a des crédits
+      if (!user?.hasPaid) {
+        console.log('❌ Utilisateur non payant, redirection vers pricing');
+        onShowPricing?.();
+        return;
+      }
+      
       if ((user?.subscription?.creditsRemaining || 0) <= 0) {
         console.log('💳 Plus de crédits disponibles, redirection vers pricing');
         onShowPricing?.();
@@ -218,7 +224,7 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
                 <p className="text-white/70 text-sm">
                   {user.hasPaid 
                     ? `Plan ${user.subscription?.plan === 'pro' ? 'Pro' : user.subscription?.plan === 'starter' ? 'Starter' : 'Premium'} • ${user.subscription?.creditsRemaining || 0} crédits restants`
-                    : 'Plan gratuit • Abonnement requis pour utiliser le service'
+                    : 'Plan gratuit • Paiement requis pour accéder au service'
                   }
                 </p>
                 {user.hasPaid && (
@@ -228,7 +234,7 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
                 )}
                 {!user.hasPaid && (
                   <p className="text-yellow-400 text-xs mt-1">
-                    ⚠️ Abonnement requis pour générer des images
+                    ⚠️ Paiement requis pour générer des images
                   </p>
                 )}
               </div>
@@ -238,7 +244,7 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
                     onClick={onShowPricing}
                     className="bg-white text-vinted-500 px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/90 transition-colors"
                   >
-                    Souscrire
+                    Payer maintenant
                   </button>
                 )}
               </div>
@@ -428,8 +434,10 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
                 ? 'Traitement...' 
                 : !isAuthenticated 
                 ? 'Se connecter pour commencer'
+                : !user?.hasPaid
+                ? 'Paiement requis'
                 : (user?.subscription?.creditsRemaining || 0) <= 0
-                ? 'Plus de crédits'
+                ? 'Recharger crédits'
                 : 'Choisir un Fichier'
               }
             </button>

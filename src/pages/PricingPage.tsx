@@ -371,33 +371,50 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
     if (planId === 'free') {
       // Plan gratuit - pas de paiement requis
       if (user && user.hasPaid) {
-        // Downgrade vers le plan gratuit
+        // Downgrade vers le plan gratuit - annuler l'abonnement actuel
         console.log('🔄 Downgrade vers plan gratuit confirmé');
+        console.log('❌ Annulation de l\'abonnement actuel');
         handlePlanChange('free');
       } else {
         onBack();
       }
     } else if (planId === 'starter') {
-      // Marquer l'interaction avec Stripe avec timestamp précis
-      console.log('🚀 Redirection vers Stripe Starter');
+      // Vérifier si l'utilisateur a déjà un abonnement
+      if (user?.hasPaid && user?.subscription?.plan === 'pro') {
+        console.log('🔄 Changement Pro → Starter (downgrade)');
+        console.log('❌ Annulation abonnement Pro, activation Starter');
+      } else if (user?.hasPaid && user?.subscription?.plan === 'starter') {
+        console.log('⚠️ Utilisateur déjà sur plan Starter');
+        return;
+      } else {
+        console.log('🚀 Nouveau abonnement Starter');
+      }
+      
       localStorage.setItem('lastStripeInteraction', Date.now().toString());
       localStorage.setItem('selectedPlan', 'starter');
       localStorage.setItem('stripeRedirectTime', Date.now().toString());
       
-      // Redirection vers Stripe pour le plan Starter
       const email = currentUserEmail || userEmail || 'exemple@gmail.com';
       const encodedEmail = encodeURIComponent(email);
       const stripeUrl = `https://buy.stripe.com/test_fZucMYcHubsj23adLG2VG00?prefilled_email=${encodedEmail}`;
       window.open(stripeUrl, '_blank');
       
     } else if (planId === 'pro') {
-      // Marquer l'interaction avec Stripe avec timestamp précis
-      console.log('🚀 Redirection vers Stripe Pro');
+      // Vérifier si l'utilisateur a déjà un abonnement
+      if (user?.hasPaid && user?.subscription?.plan === 'starter') {
+        console.log('🔄 Changement Starter → Pro (upgrade)');
+        console.log('❌ Annulation abonnement Starter, activation Pro');
+      } else if (user?.hasPaid && user?.subscription?.plan === 'pro') {
+        console.log('⚠️ Utilisateur déjà sur plan Pro');
+        return;
+      } else {
+        console.log('🚀 Nouveau abonnement Pro');
+      }
+      
       localStorage.setItem('lastStripeInteraction', Date.now().toString());
       localStorage.setItem('selectedPlan', 'pro');
       localStorage.setItem('stripeRedirectTime', Date.now().toString());
       
-      // Redirection vers Stripe pour le plan Pro
       const email = currentUserEmail || userEmail || 'exemple@gmail.com';
       const encodedEmail = encodeURIComponent(email);
       const stripeUrl = `https://buy.stripe.com/test_3cI14gdLy0NF37eePK2VG02?prefilled_email=${encodedEmail}`;
@@ -425,11 +442,11 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       case 'current':
         return 'Plan actuel';
       case 'upgrade':
-        return `Passer à ${planName}`;
+        return `Changer pour ${planName}`;
       case 'downgrade':
-        return planId === 'free' ? 'Passer au plan gratuit' : `Rétrograder vers ${planName}`;
+        return planId === 'free' ? 'Annuler abonnement' : `Changer pour ${planName}`;
       default:
-        return planId === 'free' ? 'Rester gratuit' : `Choisir ${planName}`;
+        return planId === 'free' ? 'Rester gratuit' : `Souscrire ${planName}`;
     }
   };
 
@@ -599,15 +616,15 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
                   🔗 Gestion de votre abonnement
                 </h3>
                 <p className="text-white/80 text-sm mb-4">
-                  Vous pouvez changer de plan à tout moment. Les changements sont automatiquement 
-                  synchronisés avec votre compte et vos crédits sont mis à jour instantanément.
+                  Vous pouvez changer de plan à tout moment. L'ancien abonnement sera automatiquement 
+                  annulé et remplacé par le nouveau. Vos crédits sont mis à jour instantanément.
                 </p>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                   <button
                     onClick={() => handlePlanChange('free')}
                     className="inline-flex items-center px-4 py-2 bg-red-500/20 text-red-300 rounded-lg border border-red-500/30 hover:bg-red-500/30 transition-colors text-sm"
                   >
-                    ⬇️ Passer au plan gratuit
+                    ❌ Annuler abonnement
                   </button>
                   <a
                     href="https://billing.stripe.com/p/login/test_00000000000000000000000000"
@@ -617,6 +634,11 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
                   >
                     🔗 Gérer sur Stripe
                   </a>
+                </div>
+                <div className="mt-3 p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
+                  <p className="text-xs text-yellow-300">
+                    ⚠️ Changement d'abonnement : L'ancien sera automatiquement annulé
+                  </p>
                 </div>
                 <div className="mt-4 p-3 bg-white/5 rounded-lg">
                   <p className="text-xs text-white/60">

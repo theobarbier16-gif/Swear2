@@ -113,8 +113,17 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
     const userDoc = usersSnapshot.docs[0];
     const userId = userDoc.id;
+    const currentUserData = userDoc.data();
     
     console.log('👤 Utilisateur trouvé:', userId);
+    
+    // Vérifier si l'utilisateur avait déjà un abonnement
+    if (currentUserData.hasPaid && currentUserData.subscription?.plan) {
+      console.log(`🔄 Changement d'abonnement: ${currentUserData.subscription.plan} → ${plan}`);
+      console.log('❌ Ancien abonnement automatiquement remplacé');
+    } else {
+      console.log('🆕 Nouvel abonnement créé');
+    }
 
     // Mettre à jour l'abonnement utilisateur
     const subscriptionData = {
@@ -123,6 +132,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       maxCredits: credits,
       renewalDate: admin.firestore.Timestamp.now(),
       stripeSessionId: session.id,
+      previousPlan: currentUserData.subscription?.plan || null,
+      upgradedAt: admin.firestore.Timestamp.now(),
       lastUpdated: admin.firestore.Timestamp.now()
     };
 
@@ -134,7 +145,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         subscription: subscriptionData
       });
 
-    console.log(`✅ Utilisateur ${userId} mis à jour avec plan ${plan} (${credits} crédits)`);
+    console.log(`✅ Utilisateur ${userId} mis à jour: plan ${plan} (${credits} crédits)`);
+    console.log('💳 Accès complet activé pour l\'utilisateur');
 
     // Optionnel: Envoyer un email de confirmation
     // await sendConfirmationEmail(customerEmail, plan, credits);
