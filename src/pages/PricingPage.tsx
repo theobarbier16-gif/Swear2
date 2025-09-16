@@ -1,366 +1,242 @@
-import * as functions from 'firebase-functions';
-import * as admin from 'firebase-admin';
-import Stripe from 'stripe';
-import * as express from 'express';
+import React from 'react';
+import { ArrowLeft, Check, Crown, Zap } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
-// Initialize Firebase Admin
-admin.initializeApp();
-
-// Initialize Stripe with the provided API key
-const stripeSecretKey = functions.config().stripe.secret_key;
-const stripeWebhookSecret = functions.config().stripe.webhook_secret;
-
-if (!stripeSecretKey) {
-  throw new Error('STRIPE_SECRET_KEY is required');
+interface PricingPageProps {
+  onBack: () => void;
+  userEmail?: string;
+  currentUserEmail?: string;
 }
 
-if (!stripeWebhookSecret) {
-  throw new Error('STRIPE_WEBHOOK_SECRET is required');
-}
-
-const stripe = new Stripe(stripeSecretKey, {
-  apiVersion: '2023-10-16',
-});
-
-// Create Express app for webhook handling
-const app = express();
-
-// Add a new endpoint for creating checkout sessions
-app.use(express.json());
-
-// Create checkout session endpoint
-app.post('/create-checkout-session', async (req, res) => {
-  console.log('🛒 Création session checkout');
+const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUserEmail }) => {
+  const { user } = useAuth();
   
-  try {
-    const { planType, userEmail, successUrl, cancelUrl } = req.body;
-    
-    if (!planType || !userEmail) {
-      res.status(400).json({ error: 'planType et userEmail requis' });
-      return;
-    }
-    
-    // Configuration des produits
-    const products = {
-      starter: {
-        name: 'Plan Abonnement',
-        description: 'Plan Abonnement - 25 crédits par mois',
-        price: 990, // 9.90€ en centimes
-        credits: 25
-      }
-    };
-    
-    const product = products[planType as keyof typeof products];
-    if (!product) {
-      res.status(400).json({ error: 'Type de plan invalide' });
-      return;
-    }
-    
-    console.log(`💳 Création session pour plan: ${planType} (${product.price/100}€)`);
-    
-    // Créer la session Stripe
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price_data: {
-            currency: 'eur',
-            product_data: {
-              name: product.name,
-              description: product.description,
-            },
-            unit_amount: product.price,
-          },
-          quantity: 1,
-        },
+  // Déterminer le plan actuel de l'utilisateur
+  const currentPlan = user?.subscription?.plan || 'free';
+  const creditsRemaining = user?.subscription?.creditsRemaining || 3;
+  const maxCredits = user?.subscription?.maxCredits || 3;
+
+  const plans = [
+    {
+      id: 'free',
+      name: 'Plan Gratuit',
+      price: '0€',
+      period: 'gratuit',
+      credits: 3,
+      features: [
+        '3 crédits gratuits',
+        'Qualité standard',
+        'Support communautaire'
       ],
-      mode: 'payment',
-      customer_email: userEmail,
-      success_url: successUrl || `${req.headers.origin}/pricing?success=true&plan=${planType}`,
-      cancel_url: cancelUrl || `${req.headers.origin}/pricing?canceled=true`,
-      metadata: {
-        planType: planType,
-        credits: product.credits.toString(),
-        userEmail: userEmail
-      }
-    });
-    
-    console.log(`✅ Session créée: ${session.id}`);
-    res.json({ sessionId: session.id, url: session.url });
-    
-  } catch (error) {
-    console.error('❌ Erreur création session:', error);
-    res.status(500).json({ error: 'Erreur création session checkout' });
-  }
-});
-
-// Middleware to capture raw body for Stripe webhook verification
-app.use('/webhooks/stripe', express.raw({ type: 'application/json' }));
-
-// Stripe webhook handler
-app.post('/webhooks/stripe', async (req: express.Request, res: express.Response) => {
-  console.log('🚀 Webhook Stripe reçu');
-  
-  const sig = req.headers['stripe-signature'] as string;
-  const rawBody = req.body; // Raw buffer from express.raw()
-
-  if (!sig) {
-    console.error('❌ Signature Stripe manquante');
-    res.status(400).send('Missing Stripe signature');
-    return;
-  }
-
-  let event: Stripe.Event;
-
-  try {
-    // Vérifier la signature du webhook avec le raw body
-    event = stripe.webhooks.constructEvent(rawBody, sig, stripeWebhookSecret);
-    console.log('✅ Signature webhook vérifiée');
-  } catch (err) {
-    console.error('❌ Erreur signature webhook:', err);
-    res.status(400).send(`Webhook Error: ${err}`);
-    return;
-  }
-
-  console.log('📋 Type d\'événement:', event.type);
-  console.log('🆔 ID événement:', event.id);
-
-  // Gérer les différents types d'événements
-  try {
-    switch (event.type) {
-      case 'checkout.session.completed':
-        await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
-        break;
-      
-      case 'payment_intent.succeeded':
-        await handlePaymentSucceeded(event.data.object as Stripe.PaymentIntent);
-        break;
-      
-      case 'customer.subscription.created':
-        await handleSubscriptionCreated(event.data.object as Stripe.Subscription);
-        break;
-      
-      case 'customer.subscription.updated':
-        await handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
-        break;
-      
-      case 'customer.subscription.deleted':
-        await handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
-        break;
-      
-      default:
-        console.log(`⚠️ Type d'événement non géré: ${event.type}`);
+      color: 'gray',
+      popular: false
+    },
+    {
+      id: 'starter',
+      name: 'Plan Starter',
+      price: '9,90€',
+      period: 'par mois',
+      credits: 25,
+      features: [
+        '25 crédits par mois',
+        'Qualité HD',
+        'Support prioritaire',
+        'Historique des créations'
+      ],
+      color: 'blue',
+      popular: true
+    },
+    {
+      id: 'pro',
+      name: 'Plan Pro',
+      price: '22,90€',
+      period: 'par mois',
+      credits: 150,
+      features: [
+        '150 crédits par mois',
+        'Qualité Ultra HD',
+        'Support VIP 24/7',
+        'API Access',
+        'Exports en masse'
+      ],
+      color: 'purple',
+      popular: false
     }
+  ];
 
-    res.json({ received: true, eventType: event.type });
-  } catch (error) {
-    console.error('💥 Erreur traitement webhook:', error);
-    res.status(500).json({ error: 'Erreur traitement webhook' });
-  }
-});
-
-// Export the Express app as a Firebase Function
-export const stripeWebhook = functions.https.onRequest(app);
-
-async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
-  console.log('🛒 Traitement checkout.session.completed');
-  console.log('📧 Email client:', session.customer_details?.email);
-  
-  const customerEmail = session.customer_details?.email;
-  if (!customerEmail) {
-    console.error('❌ Aucun email client trouvé');
-    return;
-  }
-
-  // Déterminer le plan basé sur le montant
-  const amount = session.amount_total || 0;
-  let plan = 'starter';
-  let credits = 25;
-  
-  if (amount >= 2290) { // 22.90€ en centimes
-    plan = 'premium';
-    credits = 100;
-  }
-  
-  // Récupérer les informations depuis les métadonnées
-  const planType = session.metadata?.planType || 'starter';
-  const creditsFromMetadata = parseInt(session.metadata?.credits || '25');
-  
-  console.log(`💳 Plan depuis métadonnées: ${planType} (${creditsFromMetadata} crédits)`);
-
-  // Validation du plan
-  if (!['starter'].includes(planType)) {
-    console.error(`❌ Type de plan invalide: ${planType}`);
-    return;
-  }
-
-  try {
-    // Rechercher l'utilisateur par email
-    const usersSnapshot = await admin.firestore()
-      .collection('users')
-      .where('email', '==', customerEmail)
-      .limit(1)
-      .get();
-
-    if (usersSnapshot.empty) {
-      console.error('❌ Aucun utilisateur trouvé avec email:', customerEmail);
+  const handleSelectPlan = (planId: string) => {
+    if (planId === 'free') {
+      // Le plan gratuit est automatique
       return;
     }
 
-    const userDoc = usersSnapshot.docs[0];
-    const userId = userDoc.id;
-    const currentUserData = userDoc.data();
-    
-    console.log('👤 Utilisateur trouvé:', userId);
-    
-    // Gérer les changements d'abonnement
-    const currentPlan = currentUserData.subscription?.plan || 'free';
-    const hadPaidBefore = currentUserData.hasPaid || false;
-    
-    if (hadPaidBefore && currentPlan !== 'free') {
-      console.log(`🔄 Changement d'abonnement détecté: ${currentPlan} → ${planType}`);
-      
-      // Si l'utilisateur avait déjà un abonnement payant, on doit annuler l'ancien
-      if (currentUserData.subscription?.stripeCustomerId) {
-        console.log('🚫 Tentative d\'annulation de l\'ancien abonnement Stripe...');
-        try {
-          // Récupérer tous les abonnements actifs du client
-          const subscriptions = await stripe.subscriptions.list({
-            customer: currentUserData.subscription.stripeCustomerId,
-            status: 'active',
-          });
-          
-          // Annuler tous les abonnements actifs
-          for (const subscription of subscriptions.data) {
-            await stripe.subscriptions.cancel(subscription.id);
-            console.log(`✅ Abonnement ${subscription.id} annulé`);
-          }
-        } catch (error) {
-          console.error('⚠️ Erreur lors de l\'annulation de l\'ancien abonnement:', error);
-          // On continue quand même pour activer le nouveau plan
-        }
-      }
-      
-      console.log(`✅ Ancien plan ${currentPlan} remplacé par ${planType}`);
-    } else if (!hadPaidBefore) {
-      console.log('🆕 Premier abonnement payant créé');
-    } else {
-      console.log('🔄 Réactivation d\'un compte précédemment payant');
+    // Rediriger vers Stripe Checkout avec l'email pré-rempli
+    const email = currentUserEmail || userEmail || '';
+    const stripeUrl = `https://buy.stripe.com/test_your_link_here?prefilled_email=${encodeURIComponent(email)}`;
+    window.open(stripeUrl, '_blank');
+  };
+
+  const isCurrentPlan = (planId: string) => {
+    if (planId === 'free') {
+      return !user?.hasPaid || currentPlan === 'free';
     }
+    return user?.hasPaid && currentPlan === planId;
+  };
 
-    // Mettre à jour l'abonnement utilisateur
-    const subscriptionData = {
-      plan: planType,
-      creditsRemaining: creditsFromMetadata,
-      maxCredits: creditsFromMetadata,
-      renewalDate: admin.firestore.Timestamp.now(),
-      stripeSessionId: session.id,
-      previousPlan: currentPlan,
-      upgradedAt: admin.firestore.Timestamp.now(),
-      lastUpdated: admin.firestore.Timestamp.now(),
-      // Stocker l'ID client Stripe pour futures annulations
-      stripeCustomerId: session.customer
-    };
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-vinted-500 via-vinted-400 to-vinted-600 relative overflow-hidden">
+      {/* Background Effects */}
+      <div className="absolute inset-0">
+        <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute top-40 right-20 w-96 h-96 bg-white/5 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute bottom-20 left-1/3 w-80 h-80 bg-white/8 rounded-full blur-3xl animate-pulse delay-500"></div>
+      </div>
 
-    await admin.firestore()
-      .collection('users')
-      .doc(userId)
-      .update({
-        hasPaid: true,
-        subscription: subscriptionData
-      });
+      <div className="relative z-10">
+        {/* Header */}
+        <div className="container mx-auto px-4 py-8">
+          <button
+            onClick={onBack}
+            className="flex items-center text-white/80 hover:text-white transition-colors duration-200 mb-8"
+          >
+            <ArrowLeft className="w-5 h-5 mr-2" />
+            Retour
+          </button>
 
-    console.log(`✅ Utilisateur ${userId} mis à jour: plan ${planType} (${creditsFromMetadata} crédits)`);
-    console.log('💳 Accès complet activé pour l\'utilisateur');
+          <div className="text-center mb-12">
+            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+              Choisissez votre plan
+            </h1>
+            <p className="text-xl text-white/80 max-w-2xl mx-auto">
+              Transformez vos photos en œuvres d'art avec notre IA avancée
+            </p>
+          </div>
+        </div>
 
-    // Optionnel: Envoyer un email de confirmation
-    // await sendConfirmationEmail(customerEmail, plan, credits);
+        {/* Plans */}
+        <div className="container mx-auto px-4 pb-16">
+          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            {plans.map((plan) => {
+              const isCurrent = isCurrentPlan(plan.id);
+              
+              return (
+                <div
+                  key={plan.id}
+                  className={`relative bg-white/10 backdrop-blur-lg rounded-2xl p-8 border transition-all duration-300 hover:scale-105 ${
+                    plan.popular
+                      ? 'border-yellow-400/50 shadow-2xl shadow-yellow-400/20'
+                      : 'border-white/20'
+                  } ${
+                    isCurrent
+                      ? 'ring-2 ring-green-400 bg-green-500/10'
+                      : ''
+                  }`}
+                >
+                  {plan.popular && (
+                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                      <div className="bg-yellow-400 text-black px-4 py-1 rounded-full text-sm font-semibold flex items-center">
+                        <Crown className="w-4 h-4 mr-1" />
+                        Populaire
+                      </div>
+                    </div>
+                  )}
 
-  } catch (error) {
-    console.error('❌ Erreur mise à jour utilisateur:', error);
-    throw error;
-  }
-}
+                  {isCurrent && (
+                    <div className="absolute -top-4 right-4">
+                      <div className="bg-green-400 text-black px-3 py-1 rounded-full text-sm font-semibold flex items-center">
+                        <Check className="w-4 h-4 mr-1" />
+                        Actuel
+                      </div>
+                    </div>
+                  )}
 
-async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
-  console.log('💰 Traitement payment_intent.succeeded');
-  console.log('🆔 Payment Intent ID:', paymentIntent.id);
-  
-  // Logique additionnelle pour les paiements réussis
-  console.log('✅ Paiement traité avec succès');
-}
+                  <div className="text-center mb-8">
+                    <h3 className="text-2xl font-bold text-white mb-2">{plan.name}</h3>
+                    <div className="mb-4">
+                      <span className="text-4xl font-bold text-white">{plan.price}</span>
+                      {plan.period !== 'gratuit' && (
+                        <span className="text-white/60 ml-2">/{plan.period}</span>
+                      )}
+                    </div>
+                    <div className="text-white/80">
+                      <span className="font-semibold">{plan.credits} crédits</span>
+                      {isCurrent && plan.id !== 'free' && (
+                        <div className="text-sm mt-1">
+                          <span className="text-green-400">{creditsRemaining} restants</span> / {maxCredits}
+                        </div>
+                      )}
+                    </div>
+                  </div>
 
-async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
-  console.log('📅 Traitement customer.subscription.created');
-  console.log('🆔 Subscription ID:', subscription.id);
-  
-  // Logique pour les nouveaux abonnements
-  console.log('✅ Abonnement créé traité');
-}
+                  <ul className="space-y-4 mb-8">
+                    {plan.features.map((feature, index) => (
+                      <li key={index} className="flex items-center text-white/90">
+                        <Check className="w-5 h-5 text-green-400 mr-3 flex-shrink-0" />
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
 
-async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
-  console.log('🔄 Traitement customer.subscription.updated');
-  console.log('🆔 Subscription ID:', subscription.id);
-  
-  // Logique pour les mises à jour d'abonnement
-  console.log('✅ Mise à jour abonnement traitée');
-}
+                  <button
+                    onClick={() => handleSelectPlan(plan.id)}
+                    disabled={isCurrent}
+                    className={`w-full py-4 px-6 rounded-xl font-semibold transition-all duration-200 ${
+                      isCurrent
+                        ? 'bg-green-500/20 text-green-400 cursor-not-allowed border border-green-400/30'
+                        : plan.popular
+                        ? 'bg-yellow-400 text-black hover:bg-yellow-300 shadow-lg hover:shadow-xl'
+                        : 'bg-white/20 text-white hover:bg-white/30 border border-white/30'
+                    }`}
+                  >
+                    {isCurrent ? 'Plan actuel' : plan.id === 'free' ? 'Plan gratuit' : 'Choisir ce plan'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
 
-async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
-  console.log('❌ Traitement customer.subscription.deleted');
-  console.log('🆔 Subscription ID:', subscription.id);
-  
-  console.log('🔄 Annulation d\'abonnement - remise en plan gratuit');
-  
-  try {
-    const customerId = subscription.customer as string;
-    
-    // Récupérer le client Stripe pour avoir l'email
-    const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
-    
-    if (customer.email) {
-      console.log(`📧 Recherche utilisateur avec email: ${customer.email}`);
-      
-      const usersSnapshot = await admin.firestore()
-        .collection('users')
-        .where('email', '==', customer.email)
-        .limit(1)
-        .get();
+          {/* Credits Info */}
+          <div className="mt-16 max-w-4xl mx-auto">
+            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20">
+              <h3 className="text-2xl font-bold text-white mb-6 text-center flex items-center justify-center">
+                <Zap className="w-6 h-6 mr-2 text-yellow-400" />
+                Comment fonctionnent les crédits ?
+              </h3>
+              
+              <div className="grid md:grid-cols-3 gap-6 text-center">
+                <div className="space-y-2">
+                  <div className="text-3xl font-bold text-white">3</div>
+                  <div className="text-white/80">Crédits gratuits</div>
+                  <div className="text-sm text-white/60">Plan Gratuit</div>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-3xl font-bold text-yellow-400">25</div>
+                  <div className="text-white/80">Crédits mensuels</div>
+                  <div className="text-sm text-white/60">Plan Starter</div>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-3xl font-bold text-purple-400">150</div>
+                  <div className="text-white/80">Crédits mensuels</div>
+                  <div className="text-sm text-white/60">Plan Pro</div>
+                </div>
+              </div>
+              
+              <div className="mt-6 text-center text-white/70 text-sm">
+                1 crédit = 1 transformation d'image • Les crédits se renouvellent chaque mois
+              </div>
+            </div>
+          </div>
 
-      if (!usersSnapshot.empty) {
-        const userDoc = usersSnapshot.docs[0];
-        const currentUserData = userDoc.data();
-        
-        console.log(`👤 Utilisateur trouvé: ${userDoc.id}`);
-        console.log(`📋 Plan actuel: ${currentUserData.subscription?.plan || 'unknown'}`);
-        
-        await admin.firestore()
-          .collection('users')
-          .doc(userDoc.id)
-          .update({
-            hasPaid: false,
-            subscription: {
-              plan: 'free',
-              creditsRemaining: 3,
-              maxCredits: 3,
-              renewalDate: admin.firestore.Timestamp.now(),
-              lastUpdated: admin.firestore.Timestamp.now(),
-              previousPlan: currentUserData.subscription?.plan || 'unknown',
-              downgradedAt: admin.firestore.Timestamp.now(),
-              cancelledSubscriptionId: subscription.id
-            }
-          });
+          {/* Test Mode Warning */}
+          <div className="mt-8 text-center">
+            <div className="inline-flex items-center px-4 py-2 bg-orange-500/20 border border-orange-400/30 rounded-lg text-orange-200 text-sm">
+              ⚠️ Mode test Stripe - Aucun paiement réel ne sera effectué
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
-        console.log(`✅ Utilisateur ${userDoc.id} remis en plan gratuit (3 crédits)`);
-      } else {
-        console.error(`❌ Aucun utilisateur trouvé avec l'email: ${customer.email}`);
-      }
-    } else {
-      console.error('❌ Aucun email trouvé pour le client Stripe');
-    }
-  } catch (error) {
-    console.error('❌ Erreur annulation abonnement:', error);
-  }
-  
-  console.log('✅ Annulation abonnement traitée');
-}
+export default PricingPage;
