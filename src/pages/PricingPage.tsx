@@ -7,8 +7,6 @@ import * as express from 'express';
 admin.initializeApp();
 
 // Initialize Stripe with the provided API key
-
-if (!stripeSecretKey) {
   throw new Error('STRIPE_SECRET_KEY is required');
 }
 
@@ -239,7 +237,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         }
       }
       
-      console.log(`✅ Ancien plan ${currentPlan} remplacé par ${planType}`);
+      console.log(`✅ Ancien plan ${currentPlan} remplacé par ${planFromMetadata}`);
     } else if (!hadPaidBefore) {
       console.log('🆕 Premier abonnement payant créé');
     } else {
@@ -248,7 +246,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
     // Mettre à jour l'abonnement utilisateur
     const subscriptionData = {
-      plan: planType,
+      plan: planFromMetadata,
       creditsRemaining: creditsFromMetadata,
       maxCredits: creditsFromMetadata,
       renewalDate: admin.firestore.Timestamp.now(),
@@ -268,7 +266,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         subscription: subscriptionData
       });
 
-    console.log(`✅ Utilisateur ${userId} mis à jour: plan ${planType} (${creditsFromMetadata} crédits)`);
+    console.log(`✅ Utilisateur ${userId} mis à jour: plan ${planFromMetadata} (${creditsFromMetadata} crédits)`);
     console.log('💳 Accès complet activé pour l\'utilisateur');
 
     // Optionnel: Envoyer un email de confirmation
