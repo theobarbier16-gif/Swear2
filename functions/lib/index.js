@@ -1,29 +1,43 @@
 "use strict";
+var _a, _b;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.stripeWebhook = void 0;
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const stripe_1 = require("stripe");
+const express = require("express");
 // Initialize Firebase Admin
 admin.initializeApp();
-// Initialize Stripe
-const stripe = new stripe_1.default(functions.config().stripe.secret_key, {
+// Initialize Stripe with environment variables
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY || ((_a = functions.config().stripe) === null || _a === void 0 ? void 0 : _a.secret_key);
+const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET || ((_b = functions.config().stripe) === null || _b === void 0 ? void 0 : _b.webhook_secret);
+if (!stripeSecretKey) {
+    throw new Error('STRIPE_SECRET_KEY is required');
+}
+if (!stripeWebhookSecret) {
+    throw new Error('STRIPE_WEBHOOK_SECRET is required');
+}
+const stripe = new stripe_1.default(stripeSecretKey, {
     apiVersion: '2023-10-16',
 });
-const endpointSecret = functions.config().stripe.webhook_secret;
-exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
+// Create Express app for webhook handling
+const app = express();
+// Middleware to capture raw body for Stripe webhook verification
+app.use('/webhooks/stripe', express.raw({ type: 'application/json' }));
+// Stripe webhook handler
+app.post('/webhooks/stripe', async (req, res) => {
     console.log('🚀 Webhook Stripe reçu');
-    // Vérifier que c'est une requête POST
-    if (req.method !== 'POST') {
-        console.log('❌ Méthode non autorisée:', req.method);
-        res.status(405).send('Method Not Allowed');
+    const sig = req.headers['stripe-signature'];
+    const rawBody = req.body; // Raw buffer from express.raw()
+    if (!sig) {
+        console.error('❌ Signature Stripe manquante');
+        res.status(400).send('Missing Stripe signature');
         return;
     }
-    const sig = req.headers['stripe-signature'];
     let event;
     try {
-        // Vérifier la signature du webhook
-        event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+        // Vérifier la signature du webhook avec le raw body
+        event = stripe.webhooks.constructEvent(rawBody, sig, stripeWebhookSecret);
         console.log('✅ Signature webhook vérifiée');
     }
     catch (err) {
@@ -61,6 +75,8 @@ exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
         res.status(500).json({ error: 'Erreur traitement webhook' });
     }
 });
+// Export the Express app as a Firebase Function
+exports.stripeWebhook = functions.https.onRequest(app);
 async function handleCheckoutCompleted(session) {
     var _a, _b, _c, _d;
     console.log('🛒 Traitement checkout.session.completed');
