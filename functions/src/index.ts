@@ -1,0 +1,216 @@
+import * as functions from 'firebase-functions';
+import * as admin from 'firebase-admin';
+import Stripe from 'stripe';
+
+// Initialize Firebase Admin
+admin.initializeApp();
+
+// Initialize Stripe
+const stripe = new Stripe(functions.config().stripe.secret_key, {
+  apiVersion: '2023-10-16',
+});
+
+const endpointSecret = functions.config().stripe.webhook_secret;
+
+export const stripeWebhook = functions.https.onRequest(async (req, res) => {
+  console.log('🚀 Webhook Stripe reçu');
+  
+  // Vérifier que c'est une requête POST
+  if (req.method !== 'POST') {
+    console.log('❌ Méthode non autorisée:', req.method);
+    res.status(405).send('Method Not Allowed');
+    return;
+  }
+
+  const sig = req.headers['stripe-signature'] as string;
+
+  let event: Stripe.Event;
+
+  try {
+    // Vérifier la signature du webhook
+    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+    console.log('✅ Signature webhook vérifiée');
+  } catch (err) {
+    console.error('❌ Erreur signature webhook:', err);
+    res.status(400).send(`Webhook Error: ${err}`);
+    return;
+  }
+
+  console.log('📋 Type d\'événement:', event.type);
+  console.log('🆔 ID événement:', event.id);
+
+  // Gérer les différents types d'événements
+  try {
+    switch (event.type) {
+      case 'checkout.session.completed':
+        await handleCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
+        break;
+      
+      case 'payment_intent.succeeded':
+        await handlePaymentSucceeded(event.data.object as Stripe.PaymentIntent);
+        break;
+      
+      case 'customer.subscription.created':
+        await handleSubscriptionCreated(event.data.object as Stripe.Subscription);
+        break;
+      
+      case 'customer.subscription.updated':
+        await handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
+        break;
+      
+      case 'customer.subscription.deleted':
+        await handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
+        break;
+      
+      default:
+        console.log(`⚠️ Type d'événement non géré: ${event.type}`);
+    }
+
+    res.json({ received: true, eventType: event.type });
+  } catch (error) {
+    console.error('💥 Erreur traitement webhook:', error);
+    res.status(500).json({ error: 'Erreur traitement webhook' });
+  }
+});
+
+async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+  console.log('🛒 Traitement checkout.session.completed');
+  console.log('📧 Email client:', session.customer_details?.email);
+  
+  const customerEmail = session.customer_details?.email;
+  if (!customerEmail) {
+    console.error('❌ Aucun email client trouvé');
+    return;
+  }
+
+  // Déterminer le plan basé sur le montant
+  const amount = session.amount_total || 0;
+  let plan = 'starter';
+  let credits = 25;
+  
+  if (amount >= 2290) { // 22.90€ en centimes
+    plan = 'pro';
+    credits = 150;
+  } else if (amount >= 990) { // 9.90€ en centimes
+    plan = 'starter';
+    credits = 25;
+  }
+
+  console.log(`💳 Plan déterminé: ${plan} (${credits} crédits) pour montant: ${amount}`);
+
+  try {
+    // Rechercher l'utilisateur par email
+    const usersSnapshot = await admin.firestore()
+      .collection('users')
+      .where('email', '==', customerEmail)
+      .limit(1)
+      .get();
+
+    if (usersSnapshot.empty) {
+      console.error('❌ Aucun utilisateur trouvé avec email:', customerEmail);
+      return;
+    }
+
+    const userDoc = usersSnapshot.docs[0];
+    const userId = userDoc.id;
+    
+    console.log('👤 Utilisateur trouvé:', userId);
+
+    // Mettre à jour l'abonnement utilisateur
+    const subscriptionData = {
+      plan: plan,
+      creditsRemaining: credits,
+      maxCredits: credits,
+      renewalDate: admin.firestore.Timestamp.now(),
+      stripeSessionId: session.id,
+      lastUpdated: admin.firestore.Timestamp.now()
+    };
+
+    await admin.firestore()
+      .collection('users')
+      .doc(userId)
+      .update({
+        hasPaid: true,
+        subscription: subscriptionData
+      });
+
+    console.log(`✅ Utilisateur ${userId} mis à jour avec plan ${plan} (${credits} crédits)`);
+
+    // Optionnel: Envoyer un email de confirmation
+    // await sendConfirmationEmail(customerEmail, plan, credits);
+
+  } catch (error) {
+    console.error('❌ Erreur mise à jour utilisateur:', error);
+    throw error;
+  }
+}
+
+async function handlePaymentSucceeded(paymentIntent: Stripe.PaymentIntent) {
+  console.log('💰 Traitement payment_intent.succeeded');
+  console.log('🆔 Payment Intent ID:', paymentIntent.id);
+  
+  // Logique additionnelle pour les paiements réussis
+  console.log('✅ Paiement traité avec succès');
+}
+
+async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
+  console.log('📅 Traitement customer.subscription.created');
+  console.log('🆔 Subscription ID:', subscription.id);
+  
+  // Logique pour les nouveaux abonnements
+  console.log('✅ Abonnement créé traité');
+}
+
+async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
+  console.log('🔄 Traitement customer.subscription.updated');
+  console.log('🆔 Subscription ID:', subscription.id);
+  
+  // Logique pour les mises à jour d'abonnement
+  console.log('✅ Mise à jour abonnement traitée');
+}
+
+async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
+  console.log('❌ Traitement customer.subscription.deleted');
+  console.log('🆔 Subscription ID:', subscription.id);
+  
+  // Logique pour les annulations d'abonnement
+  // Remettre l'utilisateur en plan gratuit
+  try {
+    const customerId = subscription.customer as string;
+    
+    // Récupérer le client Stripe pour avoir l'email
+    const customer = await stripe.customers.retrieve(customerId) as Stripe.Customer;
+    
+    if (customer.email) {
+      const usersSnapshot = await admin.firestore()
+        .collection('users')
+        .where('email', '==', customer.email)
+        .limit(1)
+        .get();
+
+      if (!usersSnapshot.empty) {
+        const userDoc = usersSnapshot.docs[0];
+        
+        await admin.firestore()
+          .collection('users')
+          .doc(userDoc.id)
+          .update({
+            hasPaid: false,
+            subscription: {
+              plan: 'free',
+              creditsRemaining: 3,
+              maxCredits: 3,
+              renewalDate: admin.firestore.Timestamp.now(),
+              lastUpdated: admin.firestore.Timestamp.now()
+            }
+          });
+
+        console.log(`✅ Utilisateur ${userDoc.id} remis en plan gratuit`);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Erreur annulation abonnement:', error);
+  }
+  
+  console.log('✅ Annulation abonnement traitée');
+}
