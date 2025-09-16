@@ -1,34 +1,51 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import Stripe from 'stripe';
+import * as express from 'express';
 
 // Initialize Firebase Admin
 admin.initializeApp();
 
-// Initialize Stripe
-const stripe = new Stripe(functions.config().stripe.secret_key, {
+// Initialize Stripe with environment variables
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY || functions.config().stripe?.secret_key;
+const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET || functions.config().stripe?.webhook_secret;
+
+if (!stripeSecretKey) {
+  throw new Error('STRIPE_SECRET_KEY is required');
+}
+
+if (!stripeWebhookSecret) {
+  throw new Error('STRIPE_WEBHOOK_SECRET is required');
+}
+
+const stripe = new Stripe(stripeSecretKey, {
   apiVersion: '2023-10-16',
 });
 
-const endpointSecret = functions.config().stripe.webhook_secret;
+// Create Express app for webhook handling
+const app = express();
 
-export const stripeWebhook = functions.https.onRequest(async (req, res) => {
+// Middleware to capture raw body for Stripe webhook verification
+app.use('/webhooks/stripe', express.raw({ type: 'application/json' }));
+
+// Stripe webhook handler
+app.post('/webhooks/stripe', async (req: express.Request, res: express.Response) => {
   console.log('🚀 Webhook Stripe reçu');
   
-  // Vérifier que c'est une requête POST
-  if (req.method !== 'POST') {
-    console.log('❌ Méthode non autorisée:', req.method);
-    res.status(405).send('Method Not Allowed');
+  const sig = req.headers['stripe-signature'] as string;
+  const rawBody = req.body; // Raw buffer from express.raw()
+
+  if (!sig) {
+    console.error('❌ Signature Stripe manquante');
+    res.status(400).send('Missing Stripe signature');
     return;
   }
-
-  const sig = req.headers['stripe-signature'] as string;
 
   let event: Stripe.Event;
 
   try {
-    // Vérifier la signature du webhook
-    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+    // Vérifier la signature du webhook avec le raw body
+    event = stripe.webhooks.constructEvent(rawBody, sig, stripeWebhookSecret);
     console.log('✅ Signature webhook vérifiée');
   } catch (err) {
     console.error('❌ Erreur signature webhook:', err);
@@ -72,6 +89,9 @@ export const stripeWebhook = functions.https.onRequest(async (req, res) => {
     res.status(500).json({ error: 'Erreur traitement webhook' });
   }
 });
+
+// Export the Express app as a Firebase Function
+export const stripeWebhook = functions.https.onRequest(app);
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   console.log('🛒 Traitement checkout.session.completed');
