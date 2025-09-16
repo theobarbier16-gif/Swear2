@@ -172,11 +172,21 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     return;
   }
 
+  // Déterminer le plan basé sur le montant
+  const amount = session.amount_total || 0;
+  let plan = 'starter';
+  let credits = 25;
+  
+  if (amount >= 2290) { // 22.90€ en centimes
+    plan = 'premium';
+    credits = 100;
+  }
+  
   // Récupérer les informations depuis les métadonnées
   const planType = session.metadata?.planType || 'starter';
-  const credits = parseInt(session.metadata?.credits || '25');
+  const creditsFromMetadata = parseInt(session.metadata?.credits || '25');
   
-  console.log(`💳 Plan depuis métadonnées: ${planType} (${credits} crédits)`);
+  console.log(`💳 Plan depuis métadonnées: ${planType} (${creditsFromMetadata} crédits)`);
 
   // Validation du plan
   if (!['starter'].includes(planType)) {
@@ -241,8 +251,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     // Mettre à jour l'abonnement utilisateur
     const subscriptionData = {
       plan: planType,
-      creditsRemaining: credits,
-      maxCredits: credits,
+      creditsRemaining: creditsFromMetadata,
+      maxCredits: creditsFromMetadata,
       renewalDate: admin.firestore.Timestamp.now(),
       stripeSessionId: session.id,
       previousPlan: currentPlan,
@@ -260,7 +270,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         subscription: subscriptionData
       });
 
-    console.log(`✅ Utilisateur ${userId} mis à jour: plan ${planType} (${credits} crédits)`);
+    console.log(`✅ Utilisateur ${userId} mis à jour: plan ${planType} (${creditsFromMetadata} crédits)`);
     console.log('💳 Accès complet activé pour l\'utilisateur');
 
     // Optionnel: Envoyer un email de confirmation

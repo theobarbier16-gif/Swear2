@@ -7,6 +7,8 @@ import * as express from 'express';
 admin.initializeApp();
 
 // Initialize Stripe with the provided API key
+const stripeSecretKey = functions.config().stripe.secret_key;
+const stripeWebhookSecret = functions.config().stripe.webhook_secret;
 
 if (!stripeSecretKey) {
   throw new Error('STRIPE_SECRET_KEY is required');
@@ -176,12 +178,15 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   let credits = 25;
   
   if (amount >= 2290) { // 22.90€ en centimes
+    plan = 'premium';
+    credits = 100;
   }
+  
   // Récupérer les informations depuis les métadonnées
   const planType = session.metadata?.planType || 'starter';
-  const credits = parseInt(session.metadata?.credits || '25');
+  const creditsFromMetadata = parseInt(session.metadata?.credits || '25');
   
-  console.log(`💳 Plan depuis métadonnées: ${planType} (${credits} crédits)`);
+  console.log(`💳 Plan depuis métadonnées: ${planType} (${creditsFromMetadata} crédits)`);
 
   // Validation du plan
   if (!['starter'].includes(planType)) {
@@ -213,7 +218,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     const hadPaidBefore = currentUserData.hasPaid || false;
     
     if (hadPaidBefore && currentPlan !== 'free') {
-      console.log(`🔄 Changement d'abonnement détecté: ${currentPlan} → ${plan}`);
+      console.log(`🔄 Changement d'abonnement détecté: ${currentPlan} → ${planType}`);
       
       // Si l'utilisateur avait déjà un abonnement payant, on doit annuler l'ancien
       if (currentUserData.subscription?.stripeCustomerId) {
@@ -236,7 +241,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         }
       }
       
-      console.log(`✅ Ancien plan ${currentPlan} remplacé par ${plan}`);
+      console.log(`✅ Ancien plan ${currentPlan} remplacé par ${planType}`);
     } else if (!hadPaidBefore) {
       console.log('🆕 Premier abonnement payant créé');
     } else {
@@ -245,9 +250,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
     // Mettre à jour l'abonnement utilisateur
     const subscriptionData = {
-      plan: plan,
-      creditsRemaining: credits,
-      maxCredits: credits,
+      plan: planType,
+      creditsRemaining: creditsFromMetadata,
+      maxCredits: creditsFromMetadata,
       renewalDate: admin.firestore.Timestamp.now(),
       stripeSessionId: session.id,
       previousPlan: currentPlan,
@@ -265,7 +270,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         subscription: subscriptionData
       });
 
-    console.log(`✅ Utilisateur ${userId} mis à jour: plan ${plan} (${credits} crédits)`);
+    console.log(`✅ Utilisateur ${userId} mis à jour: plan ${planType} (${creditsFromMetadata} crédits)`);
     console.log('💳 Accès complet activé pour l\'utilisateur');
 
     // Optionnel: Envoyer un email de confirmation
