@@ -46,7 +46,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       icon: Zap,
       color: 'bg-vinted-500',
       popular: true,
-      stripeUrl: 'https://buy.stripe.com/test_starter_link' // Remplacez par votre vraie URL
+      stripeUrl: 'https://buy.stripe.com/test_3cI14gdLy0NF37eePK2VG02'
     },
     {
       id: 'pro',
@@ -64,7 +64,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       icon: Crown,
       color: 'bg-purple-500',
       popular: false,
-      stripeUrl: 'https://buy.stripe.com/test_pro_link' // Remplacez par votre vraie URL
+      stripeUrl: 'https://buy.stripe.com/test_bIY28k1Ug37N5nq4gh'
     }
   ];
 
@@ -80,15 +80,10 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       return;
     }
     
-    // Construire l'URL avec l'email pré-rempli
-    const email = currentUserEmail || userEmail || '';
-    const url = new URL(plan.stripeUrl);
-    if (email) {
-      url.searchParams.set('prefilled_email', email);
-    }
+    console.log(`🔗 Redirection vers Stripe pour le plan ${plan.name}:`, plan.stripeUrl);
     
-    // Redirection vers Stripe
-    window.location.href = url.toString();
+    // Redirection directe vers Stripe (sans modification de l'URL)
+    window.location.href = plan.stripeUrl;
   };
 
   const getButtonText = (plan: typeof plans[0]) => {
