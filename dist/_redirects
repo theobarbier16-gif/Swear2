@@ -1,5 +1,2 @@
-# Redirect webhook calls to Firebase function
-/webhooks/stripe https://us-central1-swear-30c84.cloudfunctions.net/stripeWebhook/webhooks/stripe 200
-
 # SPA fallback
 /*    /index.html   200
