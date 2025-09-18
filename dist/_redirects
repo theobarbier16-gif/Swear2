@@ -1,9 +1,5 @@
 # Redirect webhook calls to Supabase edge function
 /webhooks/stripe https://swear-30c84.supabase.co/functions/v1/stripe-webhook 200
 
-# Allow external Stripe URLs to pass through (don't intercept)
-)
-https://buy.stripe.com/* https://buy.stripe.com/:splat 301!
-
 # SPA fallback
 /*    /index.html   200

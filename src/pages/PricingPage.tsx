@@ -82,8 +82,8 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
     
     console.log(`🔗 Redirection vers Stripe pour le plan ${plan.name}:`, plan.stripeUrl);
     
-    // Redirection directe vers Stripe (sans modification de l'URL)
-    window.location.href = plan.stripeUrl;
+    // Ouvrir Stripe dans un nouvel onglet pour éviter les problèmes de CORS/redirection
+    window.open(plan.stripeUrl, '_blank', 'noopener,noreferrer');
   };
 
   const getButtonText = (plan: typeof plans[0]) => {
