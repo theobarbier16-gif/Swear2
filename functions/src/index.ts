@@ -172,25 +172,42 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     return;
   }
 
-  // Déterminer le plan basé sur le montant
+  // Déterminer le plan et les crédits basés sur le montant
   const amount = session.amount_total || 0;
-  let plan = 'starter';
-  let credits = 25;
+  let plan: string;
+  let credits: number;
   
-  if (amount >= 2290) { // 22.90€ en centimes
-    plan = 'premium';
-    credits = 100;
+  console.log(`💰 Montant du paiement: ${amount} centimes (${amount/100}€)`);
+  
+  if (amount >= 2290) { // 22.90€ en centimes = Plan Pro
+    plan = 'pro';
+    credits = 150;
+    console.log('📋 Plan détecté: Pro (150 crédits)');
+  } else if (amount >= 990) { // 9.90€ en centimes = Plan Starter
+    plan = 'starter';
+    credits = 25;
+    console.log('📋 Plan détecté: Starter (25 crédits)');
+  } else {
+    console.error(`❌ Montant non reconnu: ${amount} centimes`);
+    plan = 'starter'; // Fallback
+    credits = 25;
   }
   
-  // Récupérer les informations depuis les métadonnées
-  const planType = session.metadata?.planType || 'starter';
-  const creditsFromMetadata = parseInt(session.metadata?.credits || '25');
+  // Vérifier les métadonnées si disponibles (priorité aux métadonnées)
+  if (session.metadata?.planType) {
+    const metadataPlan = session.metadata.planType;
+    const metadataCredits = parseInt(session.metadata.credits || '0');
+    
+    if (metadataPlan && metadataCredits > 0) {
+      plan = metadataPlan;
+      credits = metadataCredits;
+      console.log(`📋 Plan depuis métadonnées: ${plan} (${credits} crédits)`);
+    }
+  }
   
-  console.log(`💳 Plan depuis métadonnées: ${planType} (${creditsFromMetadata} crédits)`);
-
-  // Validation du plan
-  if (!['starter'].includes(planType)) {
-    console.error(`❌ Type de plan invalide: ${planType}`);
+  // Validation finale du plan
+  if (!['starter', 'pro'].includes(plan)) {
+    console.error(`❌ Type de plan invalide: ${plan}`);
     return;
   }
 
@@ -218,7 +235,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     const hadPaidBefore = currentUserData.hasPaid || false;
     
     if (hadPaidBefore && currentPlan !== 'free') {
-      console.log(`🔄 Changement d'abonnement détecté: ${currentPlan} → ${planType}`);
+      console.log(`🔄 Changement d'abonnement détecté: ${currentPlan} → ${plan}`);
       
       // Si l'utilisateur avait déjà un abonnement payant, on doit annuler l'ancien
       if (currentUserData.subscription?.stripeCustomerId) {
@@ -241,7 +258,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         }
       }
       
-      console.log(`✅ Ancien plan ${currentPlan} remplacé par ${planType}`);
+      console.log(`✅ Ancien plan ${currentPlan} remplacé par ${plan}`);
     } else if (!hadPaidBefore) {
       console.log('🆕 Premier abonnement payant créé');
     } else {
@@ -250,9 +267,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
     // Mettre à jour l'abonnement utilisateur
     const subscriptionData = {
-      plan: planType,
-      creditsRemaining: creditsFromMetadata,
-      maxCredits: creditsFromMetadata,
+      plan: plan,
+      creditsRemaining: credits,
+      maxCredits: credits,
       renewalDate: admin.firestore.Timestamp.now(),
       stripeSessionId: session.id,
       previousPlan: currentPlan,
@@ -270,7 +287,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         subscription: subscriptionData
       });
 
-    console.log(`✅ Utilisateur ${userId} mis à jour: plan ${planType} (${creditsFromMetadata} crédits)`);
+    console.log(`✅ Utilisateur ${userId} mis à jour: plan ${plan} (${credits} crédits)`);
     console.log('💳 Accès complet activé pour l\'utilisateur');
 
     // Optionnel: Envoyer un email de confirmation
