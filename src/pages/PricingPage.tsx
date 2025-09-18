@@ -64,7 +64,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       icon: Crown,
       color: 'bg-purple-500',
       popular: false,
-      stripeUrl: 'https://buy.stripe.com/test_bIY28k1Ug37N5nq4gh'
+      stripeUrl: 'https://buy.stripe.com/test_fZucMYcHubsj23adLG2VG00'
     }
   ];
 
