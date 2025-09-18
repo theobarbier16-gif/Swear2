@@ -46,7 +46,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       icon: Zap,
       color: 'bg-vinted-500',
       popular: true,
-      stripeUrl: 'https://buy.stripe.com/test_3cI14gdLy0NF37eePK2VG02'
+      stripeUrl: 'https://buy.stripe.com/test_fZucMYcHubsj23adLG2VG00'
     },
     {
       id: 'pro',
@@ -64,7 +64,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       icon: Crown,
       color: 'bg-purple-500',
       popular: false,
-      stripeUrl: 'https://buy.stripe.com/test_fZucMYcHubsj23adLG2VG00'
+      stripeUrl: 'https://buy.stripe.com/test_3cI14gdLy0NF37eePK2VG02'
     }
   ];
 
@@ -82,8 +82,21 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
     
     console.log(`🔗 Redirection vers Stripe pour le plan ${plan.name}:`, plan.stripeUrl);
     
+    // Construire l'URL avec l'email pré-rempli si l'utilisateur est connecté
+    let stripeUrl = plan.stripeUrl;
+    
+    // Ajouter l'email de l'utilisateur connecté ou l'email fourni
+    const emailToUse = user?.email || currentUserEmail || userEmail;
+    if (emailToUse) {
+      const separator = stripeUrl.includes('?') ? '&' : '?';
+      stripeUrl = `${stripeUrl}${separator}prefilled_email=${encodeURIComponent(emailToUse)}`;
+      console.log(`📧 Email pré-rempli: ${emailToUse}`);
+    }
+    
+    console.log(`🔗 URL finale: ${stripeUrl}`);
+    
     // Ouvrir Stripe dans un nouvel onglet pour éviter les problèmes de CORS/redirection
-    window.open(plan.stripeUrl, '_blank', 'noopener,noreferrer');
+    window.open(stripeUrl, '_blank', 'noopener,noreferrer');
   };
 
   const getButtonText = (plan: typeof plans[0]) => {
