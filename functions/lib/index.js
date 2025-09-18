@@ -8,9 +8,9 @@ const stripe_1 = require("stripe");
 const express = require("express");
 // Initialize Firebase Admin
 admin.initializeApp();
-// Initialize Stripe with environment variables
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY || ((_a = functions.config().stripe) === null || _a === void 0 ? void 0 : _a.secret_key);
-const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET || ((_b = functions.config().stripe) === null || _b === void 0 ? void 0 : _b.webhook_secret);
+// Initialize Stripe with the provided API key
+const stripeSecretKey = (_a = functions.config().stripe) === null || _a === void 0 ? void 0 : _a.secret_key;
+const stripeWebhookSecret = (_b = functions.config().stripe) === null || _b === void 0 ? void 0 : _b.webhook_secret;
 if (!stripeSecretKey) {
     throw new Error('STRIPE_SECRET_KEY is required');
 }
@@ -22,6 +22,66 @@ const stripe = new stripe_1.default(stripeSecretKey, {
 });
 // Create Express app for webhook handling
 const app = express();
+// Add a new endpoint for creating checkout sessions
+app.use(express.json());
+// Create checkout session endpoint
+app.post('/create-checkout-session', async (req, res) => {
+    console.log('🛒 Création session checkout');
+    try {
+        const { planType, userEmail, successUrl, cancelUrl } = req.body;
+        if (!planType || !userEmail) {
+            res.status(400).json({ error: 'planType et userEmail requis' });
+            return;
+        }
+        // Configuration des produits
+        const products = {
+            starter: {
+                name: 'Plan Abonnement',
+                description: 'Plan Abonnement - 25 crédits par mois',
+                price: 990, // 9.90€ en centimes
+                credits: 25
+            }
+        };
+        const product = products[planType];
+        if (!product) {
+            res.status(400).json({ error: 'Type de plan invalide' });
+            return;
+        }
+        console.log(`💳 Création session pour plan: ${planType} (${product.price / 100}€)`);
+        // Créer la session Stripe
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ['card'],
+            line_items: [
+                {
+                    price_data: {
+                        currency: 'eur',
+                        product_data: {
+                            name: product.name,
+                            description: product.description,
+                        },
+                        unit_amount: product.price,
+                    },
+                    quantity: 1,
+                },
+            ],
+            mode: 'payment',
+            customer_email: userEmail,
+            success_url: successUrl || `${req.headers.origin}/pricing?success=true&plan=${planType}`,
+            cancel_url: cancelUrl || `${req.headers.origin}/pricing?canceled=true`,
+            metadata: {
+                planType: planType,
+                credits: product.credits.toString(),
+                userEmail: userEmail
+            }
+        });
+        console.log(`✅ Session créée: ${session.id}`);
+        res.json({ sessionId: session.id, url: session.url });
+    }
+    catch (error) {
+        console.error('❌ Erreur création session:', error);
+        res.status(500).json({ error: 'Erreur création session checkout' });
+    }
+});
 // Middleware to capture raw body for Stripe webhook verification
 app.use('/webhooks/stripe', express.raw({ type: 'application/json' }));
 // Stripe webhook handler
@@ -78,7 +138,7 @@ app.post('/webhooks/stripe', async (req, res) => {
 // Export the Express app as a Firebase Function
 exports.stripeWebhook = functions.https.onRequest(app);
 async function handleCheckoutCompleted(session) {
-    var _a, _b, _c, _d;
+    var _a, _b, _c, _d, _e;
     console.log('🛒 Traitement checkout.session.completed');
     console.log('📧 Email client:', (_a = session.customer_details) === null || _a === void 0 ? void 0 : _a.email);
     const customerEmail = (_b = session.customer_details) === null || _b === void 0 ? void 0 : _b.email;
@@ -86,19 +146,41 @@ async function handleCheckoutCompleted(session) {
         console.error('❌ Aucun email client trouvé');
         return;
     }
-    // Déterminer le plan basé sur le montant
+    // Déterminer le plan et les crédits basés sur le montant
     const amount = session.amount_total || 0;
-    let plan = 'starter';
-    let credits = 25;
-    if (amount >= 2290) { // 22.90€ en centimes
+    let plan;
+    let credits;
+    console.log(`💰 Montant du paiement: ${amount} centimes (${amount / 100}€)`);
+    if (amount >= 2290) { // 22.90€ en centimes = Plan Pro
         plan = 'pro';
         credits = 150;
+        console.log('📋 Plan détecté: Pro (150 crédits)');
     }
-    else if (amount >= 990) { // 9.90€ en centimes
+    else if (amount >= 990) { // 9.90€ en centimes = Plan Starter
         plan = 'starter';
         credits = 25;
+        console.log('📋 Plan détecté: Starter (25 crédits)');
     }
-    console.log(`💳 Plan déterminé: ${plan} (${credits} crédits) pour montant: ${amount}`);
+    else {
+        console.error(`❌ Montant non reconnu: ${amount} centimes`);
+        plan = 'starter'; // Fallback
+        credits = 25;
+    }
+    // Vérifier les métadonnées si disponibles (priorité aux métadonnées)
+    if ((_c = session.metadata) === null || _c === void 0 ? void 0 : _c.planType) {
+        const metadataPlan = session.metadata.planType;
+        const metadataCredits = parseInt(session.metadata.credits || '0');
+        if (metadataPlan && metadataCredits > 0) {
+            plan = metadataPlan;
+            credits = metadataCredits;
+            console.log(`📋 Plan depuis métadonnées: ${plan} (${credits} crédits)`);
+        }
+    }
+    // Validation finale du plan
+    if (!['starter', 'pro'].includes(plan)) {
+        console.error(`❌ Type de plan invalide: ${plan}`);
+        return;
+    }
     try {
         // Rechercher l'utilisateur par email
         const usersSnapshot = await admin.firestore()
@@ -114,13 +196,38 @@ async function handleCheckoutCompleted(session) {
         const userId = userDoc.id;
         const currentUserData = userDoc.data();
         console.log('👤 Utilisateur trouvé:', userId);
-        // Vérifier si l'utilisateur avait déjà un abonnement
-        if (currentUserData.hasPaid && ((_c = currentUserData.subscription) === null || _c === void 0 ? void 0 : _c.plan)) {
-            console.log(`🔄 Changement d'abonnement: ${currentUserData.subscription.plan} → ${plan}`);
-            console.log('❌ Ancien abonnement automatiquement remplacé');
+        // Gérer les changements d'abonnement
+        const currentPlan = ((_d = currentUserData.subscription) === null || _d === void 0 ? void 0 : _d.plan) || 'free';
+        const hadPaidBefore = currentUserData.hasPaid || false;
+        if (hadPaidBefore && currentPlan !== 'free') {
+            console.log(`🔄 Changement d'abonnement détecté: ${currentPlan} → ${plan}`);
+            // Si l'utilisateur avait déjà un abonnement payant, on doit annuler l'ancien
+            if ((_e = currentUserData.subscription) === null || _e === void 0 ? void 0 : _e.stripeCustomerId) {
+                console.log('🚫 Tentative d\'annulation de l\'ancien abonnement Stripe...');
+                try {
+                    // Récupérer tous les abonnements actifs du client
+                    const subscriptions = await stripe.subscriptions.list({
+                        customer: currentUserData.subscription.stripeCustomerId,
+                        status: 'active',
+                    });
+                    // Annuler tous les abonnements actifs
+                    for (const subscription of subscriptions.data) {
+                        await stripe.subscriptions.cancel(subscription.id);
+                        console.log(`✅ Abonnement ${subscription.id} annulé`);
+                    }
+                }
+                catch (error) {
+                    console.error('⚠️ Erreur lors de l\'annulation de l\'ancien abonnement:', error);
+                    // On continue quand même pour activer le nouveau plan
+                }
+            }
+            console.log(`✅ Ancien plan ${currentPlan} remplacé par ${plan}`);
+        }
+        else if (!hadPaidBefore) {
+            console.log('🆕 Premier abonnement payant créé');
         }
         else {
-            console.log('🆕 Nouvel abonnement créé');
+            console.log('🔄 Réactivation d\'un compte précédemment payant');
         }
         // Mettre à jour l'abonnement utilisateur
         const subscriptionData = {
@@ -129,9 +236,11 @@ async function handleCheckoutCompleted(session) {
             maxCredits: credits,
             renewalDate: admin.firestore.Timestamp.now(),
             stripeSessionId: session.id,
-            previousPlan: ((_d = currentUserData.subscription) === null || _d === void 0 ? void 0 : _d.plan) || null,
+            previousPlan: currentPlan,
             upgradedAt: admin.firestore.Timestamp.now(),
-            lastUpdated: admin.firestore.Timestamp.now()
+            lastUpdated: admin.firestore.Timestamp.now(),
+            // Stocker l'ID client Stripe pour futures annulations
+            stripeCustomerId: session.customer
         };
         await admin.firestore()
             .collection('users')
@@ -169,15 +278,16 @@ async function handleSubscriptionUpdated(subscription) {
     console.log('✅ Mise à jour abonnement traitée');
 }
 async function handleSubscriptionDeleted(subscription) {
+    var _a, _b;
     console.log('❌ Traitement customer.subscription.deleted');
     console.log('🆔 Subscription ID:', subscription.id);
-    // Logique pour les annulations d'abonnement
-    // Remettre l'utilisateur en plan gratuit
+    console.log('🔄 Annulation d\'abonnement - remise en plan gratuit');
     try {
         const customerId = subscription.customer;
         // Récupérer le client Stripe pour avoir l'email
         const customer = await stripe.customers.retrieve(customerId);
         if (customer.email) {
+            console.log(`📧 Recherche utilisateur avec email: ${customer.email}`);
             const usersSnapshot = await admin.firestore()
                 .collection('users')
                 .where('email', '==', customer.email)
@@ -185,6 +295,9 @@ async function handleSubscriptionDeleted(subscription) {
                 .get();
             if (!usersSnapshot.empty) {
                 const userDoc = usersSnapshot.docs[0];
+                const currentUserData = userDoc.data();
+                console.log(`👤 Utilisateur trouvé: ${userDoc.id}`);
+                console.log(`📋 Plan actuel: ${((_a = currentUserData.subscription) === null || _a === void 0 ? void 0 : _a.plan) || 'unknown'}`);
                 await admin.firestore()
                     .collection('users')
                     .doc(userDoc.id)
@@ -195,11 +308,20 @@ async function handleSubscriptionDeleted(subscription) {
                         creditsRemaining: 3,
                         maxCredits: 3,
                         renewalDate: admin.firestore.Timestamp.now(),
-                        lastUpdated: admin.firestore.Timestamp.now()
+                        lastUpdated: admin.firestore.Timestamp.now(),
+                        previousPlan: ((_b = currentUserData.subscription) === null || _b === void 0 ? void 0 : _b.plan) || 'unknown',
+                        downgradedAt: admin.firestore.Timestamp.now(),
+                        cancelledSubscriptionId: subscription.id
                     }
                 });
-                console.log(`✅ Utilisateur ${userDoc.id} remis en plan gratuit`);
+                console.log(`✅ Utilisateur ${userDoc.id} remis en plan gratuit (3 crédits)`);
             }
+            else {
+                console.error(`❌ Aucun utilisateur trouvé avec l'email: ${customer.email}`);
+            }
+        }
+        else {
+            console.error('❌ Aucun email trouvé pour le client Stripe');
         }
     }
     catch (error) {
