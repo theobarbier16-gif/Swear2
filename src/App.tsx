@@ -5,81 +5,208 @@ import Footer from './components/Footer';
 import UploadStep from './components/UploadStep';
 import ProcessingStep from './components/ProcessingStep';
 import ResultsStep from './components/ResultsStep';
-import AuthModal from './components/auth/AuthModal';
+import LoginPage from './pages/LoginPage';
 import PricingPage from './pages/PricingPage';
+import { processImageWithN8N, setDebugLogger } from './utils/imageProcessor';
+
+export interface ClothingOptions {
+  gender: 'femme' | 'homme' | 'enfant';
+  size: 'xs' | 's' | 'm' | 'l' | 'xl';
+  mirror?: 'normal' | 'mirror';
+}
 
 type Step = 'upload' | 'processing' | 'results';
+type Page = 'main' | 'login' | 'pricing';
 
 function App() {
-  const { user } = useAuth();
+  const { user, isAuthenticated, decrementCredits, refundCredits } = useAuth();
+  const [currentPage, setCurrentPage] = useState<Page>('main');
   const [currentStep, setCurrentStep] = useState<Step>('upload');
-  const [uploadedImage, setUploadedImage] = useState<File | null>(null);
-  const [processedResults, setProcessedResults] = useState<any>(null);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [showPricing, setShowPricing] = useState(false);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string>('');
+  const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [processingError, setProcessingError] = useState<string | null>(null);
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
 
-  const handleImageUpload = (file: File) => {
-    setUploadedImage(file);
+  // Configuration du logger de debug
+  React.useEffect(() => {
+    setDebugLogger((message: string) => {
+      setDebugLogs(prev => [...prev.slice(-49), message]);
+    });
+  }, []);
+
+  const handleImageUpload = async (imageUrl: string, fileName: string, file: File, options: ClothingOptions) => {
+    console.log('🚀 Début du traitement d\'image');
+    
+    setUploadedImage(imageUrl);
+    setFileName(fileName);
     setCurrentStep('processing');
-  };
+    setIsProcessing(true);
+    setProcessingError(null);
+    setGeneratedImage(null);
 
-  const handleProcessingComplete = (results: any) => {
-    setProcessedResults(results);
-    setCurrentStep('results');
-  };
+    // Décrémenter les crédits avant le traitement
+    const creditDeducted = await decrementCredits();
+    if (!creditDeducted) {
+      console.log('❌ Impossible de déduire les crédits');
+      setProcessingError('Impossible de déduire les crédits. Vérifiez votre solde.');
+      setCurrentStep('upload');
+      setIsProcessing(false);
+      return;
+    }
 
-  const handleReset = () => {
-    setCurrentStep('upload');
-    setUploadedImage(null);
-    setProcessedResults(null);
-  };
-
-  const renderCurrentStep = () => {
-    switch (currentStep) {
-      case 'upload':
-        return (
-          <UploadStep
-            onImageUpload={handleImageUpload}
-            onShowAuth={() => setShowAuthModal(true)}
-            onShowPricing={() => setShowPricing(true)}
-          />
-        );
-      case 'processing':
-        return (
-          <ProcessingStep
-            image={uploadedImage}
-            onComplete={handleProcessingComplete}
-            onError={() => setCurrentStep('upload')}
-          />
-        );
-      case 'results':
-        return (
-          <ResultsStep
-            results={processedResults}
-            onReset={handleReset}
-          />
-        );
-      default:
-        return null;
+    try {
+      console.log('📡 Envoi vers N8N...');
+      const result = await processImageWithN8N(file, options);
+      
+      if (result.success && result.imageUrl) {
+        console.log('✅ Image générée avec succès');
+        setGeneratedImage(result.imageUrl);
+        setCurrentStep('results');
+      } else {
+        console.log('❌ Échec génération:', result.error);
+        setProcessingError(result.error || 'Erreur de traitement inconnue');
+        setCurrentStep('upload');
+        
+        // Rembourser le crédit en cas d'échec
+        await refundCredits();
+      }
+    } catch (error) {
+      console.error('❌ Erreur traitement:', error);
+      setProcessingError(error instanceof Error ? error.message : 'Erreur de traitement');
+      setCurrentStep('upload');
+      
+      // Rembourser le crédit en cas d'erreur
+      await refundCredits();
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  if (showPricing) {
-    return <PricingPage onClose={() => setShowPricing(false)} />;
+  const handleStartOver = () => {
+    setCurrentStep('upload');
+    setUploadedImage(null);
+    setFileName('');
+    setGeneratedImage(null);
+    setProcessingError(null);
+    setDebugLogs([]);
+  };
+
+  const handleGoHome = () => {
+    setCurrentPage('main');
+    setCurrentStep('upload');
+    setUploadedImage(null);
+    setFileName('');
+    setGeneratedImage(null);
+    setProcessingError(null);
+    setDebugLogs([]);
+  };
+
+  const handleShowLogin = () => {
+    setCurrentPage('login');
+  };
+
+  const handleShowPricing = () => {
+    setCurrentPage('pricing');
+  };
+
+  const handleBackFromLogin = () => {
+    setCurrentPage('main');
+  };
+
+  const handleBackFromPricing = () => {
+    setCurrentPage('main');
+  };
+
+  // Rendu conditionnel des pages
+  if (currentPage === 'login') {
+    return (
+      <LoginPage 
+        onBack={handleBackFromLogin}
+        onShowPricing={(email: string) => {
+          setCurrentPage('pricing');
+        }}
+      />
+    );
   }
 
+  if (currentPage === 'pricing') {
+    return (
+      <PricingPage 
+        onBack={handleBackFromPricing}
+        currentUserEmail={user?.email}
+      />
+    );
+  }
+
+  // Page principale
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <Header onShowPricing={() => setShowPricing(true)} />
-      
-      <main className="container mx-auto px-4 py-8">
-        {renderCurrentStep()}
-      </main>
+    <div className="min-h-screen bg-gradient-to-br from-vinted-500 via-vinted-400 to-vinted-600 relative overflow-hidden">
+      {/* Background Effects */}
+      <div className="absolute inset-0">
+        <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute top-40 right-20 w-96 h-96 bg-white/5 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        <div className="absolute bottom-20 left-1/3 w-80 h-80 bg-white/8 rounded-full blur-3xl animate-pulse delay-500"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-vinted-600/20 to-transparent"></div>
+      </div>
 
-      <Footer />
+      <div className="relative z-10 min-h-screen flex flex-col">
+        <Header 
+          onShowLogin={handleShowLogin}
+          onShowPricing={handleShowPricing}
+          onGoHome={handleGoHome}
+        />
+        
+        <main className="flex-1 container mx-auto px-4 py-8 max-w-6xl">
+          {currentStep === 'upload' && (
+            <UploadStep
+              onImageUpload={handleImageUpload}
+              isProcessing={isProcessing}
+              processingError={processingError}
+              onShowLogin={handleShowLogin}
+              onShowPricing={handleShowPricing}
+            />
+          )}
+          
+          {currentStep === 'processing' && (
+            <ProcessingStep
+              uploadedImage={uploadedImage}
+              fileName={fileName}
+            />
+          )}
+          
+          {currentStep === 'results' && (
+            <ResultsStep
+              uploadedImage={uploadedImage}
+              generatedImage={generatedImage}
+              fileName={fileName}
+              onStartOver={handleStartOver}
+            />
+          )}
+        </main>
 
-      {showAuthModal && (
-        <AuthModal onClose={() => setShowAuthModal(false)} />
+        <Footer />
+      </div>
+
+      {/* Debug Panel (development only) */}
+      {import.meta.env.DEV && debugLogs.length > 0 && (
+        <div className="fixed bottom-4 right-4 w-96 max-h-64 bg-black/90 text-white text-xs p-4 rounded-lg overflow-y-auto z-50">
+          <div className="flex justify-between items-center mb-2">
+            <span className="font-bold">Debug Logs</span>
+            <button 
+              onClick={() => setDebugLogs([])}
+              className="text-red-400 hover:text-red-300"
+            >
+              Clear
+            </button>
+          </div>
+          {debugLogs.map((log, index) => (
+            <div key={index} className="mb-1 font-mono">
+              {log}
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
