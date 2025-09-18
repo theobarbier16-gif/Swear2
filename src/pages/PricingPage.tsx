@@ -99,6 +99,32 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
     window.open(stripeUrl, '_blank', 'noopener,noreferrer');
   };
 
+  const getStripeUrl = (plan: typeof plans[0]) => {
+    if (plan.id === 'free' || !plan.stripeUrl) {
+      return '#';
+    }
+    
+    let stripeUrl = plan.stripeUrl;
+    
+    // Ajouter l'email de l'utilisateur connecté ou l'email fourni
+    const emailToUse = user?.email || currentUserEmail || userEmail;
+    if (emailToUse) {
+      const separator = stripeUrl.includes('?') ? '&' : '?';
+      stripeUrl = `${stripeUrl}${separator}prefilled_email=${encodeURIComponent(emailToUse)}`;
+    }
+    
+    return stripeUrl;
+  };
+
+  const handleFreePlanClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    // Plan gratuit - pas d'action nécessaire
+  };
+
+  const handleDisabledClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    // Plan actuel - empêcher la navigation
+  };
   const getButtonText = (plan: typeof plans[0]) => {
     if (plan.id === currentPlan) {
       return 'Plan actuel';
@@ -243,21 +269,38 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
                     </ul>
 
                     {/* CTA Button */}
-                    <button
-                      onClick={() => handlePlanSelection(plan)}
-                      disabled={disabled}
-                      className={`
-                        w-full py-3 px-6 rounded-xl font-medium transition-all duration-200 shadow-lg
-                        ${disabled
-                          ? 'bg-green-500 text-white cursor-not-allowed opacity-75'
-                          : plan.popular
-                          ? 'bg-white text-vinted-500 hover:bg-white/90 hover:scale-105'
-                          : 'bg-white/20 text-white border-2 border-white/30 hover:bg-white/30 hover:border-white/50 hover:scale-105'
-                        }
-                      `}
-                    >
-                      {getButtonText(plan)}
-                    </button>
+                    {plan.id === 'free' ? (
+                      <a
+                        href="#"
+                        onClick={handleFreePlanClick}
+                        className="w-full py-3 px-6 rounded-xl font-medium transition-all duration-200 shadow-lg bg-white/20 text-white border-2 border-white/30 hover:bg-white/30 hover:border-white/50 hover:scale-105 inline-block text-center cursor-pointer"
+                      >
+                        {getButtonText(plan)}
+                      </a>
+                    ) : disabled ? (
+                      <a
+                        href="#"
+                        onClick={handleDisabledClick}
+                        className="w-full py-3 px-6 rounded-xl font-medium transition-all duration-200 shadow-lg bg-green-500 text-white cursor-not-allowed opacity-75 inline-block text-center"
+                      >
+                        {getButtonText(plan)}
+                      </a>
+                    ) : (
+                      <a
+                        href={getStripeUrl(plan)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`
+                          w-full py-3 px-6 rounded-xl font-medium transition-all duration-200 shadow-lg inline-block text-center
+                          ${plan.popular
+                            ? 'bg-white text-vinted-500 hover:bg-white/90 hover:scale-105'
+                            : 'bg-white/20 text-white border-2 border-white/30 hover:bg-white/30 hover:border-white/50 hover:scale-105'
+                          }
+                        `}
+                      >
+                        {getButtonText(plan)}
+                      </a>
+                    )}
                   </div>
                 </div>
               );
