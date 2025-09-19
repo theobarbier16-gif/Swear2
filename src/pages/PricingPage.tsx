@@ -80,6 +80,8 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
     }
     
     console.log(`🔗 Création session Stripe pour le plan ${plan.name}`);
+    console.log('🌍 URL actuelle:', window.location.href);
+    console.log('🔧 Environnement détecté:', window.location.hostname);
     
     // Préparer les données pour la session Stripe
     const emailToUse = user?.email || currentUserEmail || userEmail || '';
@@ -98,6 +100,9 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
     }
     
     try {
+      // Test de connectivité d'abord
+      console.log('🔍 Test de connectivité Firebase Functions...');
+      
       await stripeService.redirectToCheckout({
         planType: plan.id as 'starter' | 'pro',
         userEmail: emailToUse,
@@ -109,7 +114,14 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       
       // Message d'erreur plus détaillé
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-      alert(`Erreur: ${errorMessage}\n\nSi le problème persiste, contactez le support.`);
+      
+      // Afficher des informations de débogage
+      console.log('🔧 Informations de débogage:');
+      console.log('- URL:', window.location.href);
+      console.log('- Hostname:', window.location.hostname);
+      console.log('- Protocol:', window.location.protocol);
+      
+      alert(`Erreur de paiement: ${errorMessage}\n\nInformations de débogage:\n- URL: ${window.location.href}\n- Erreur: ${errorMessage}\n\nContactez le support si le problème persiste.`);
     } finally {
       // Restaurer le bouton
       if (button && originalText) {

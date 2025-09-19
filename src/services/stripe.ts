@@ -15,14 +15,19 @@ export class StripeService {
   private baseUrl: string;
 
   constructor() {
-    // Utiliser l'URL correcte selon l'environnement
-    if (import.meta.env.PROD) {
+    // Utiliser une approche plus robuste pour détecter l'environnement
+    const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+    
+    if (isProduction) {
       // En production, utiliser l'URL Firebase Functions
       this.baseUrl = 'https://us-central1-swear-30c84.cloudfunctions.net/stripeWebhook';
     } else {
       // En développement, utiliser localhost
       this.baseUrl = 'http://localhost:5001/swear-30c84/us-central1/stripeWebhook';
     }
+    
+    console.log('🔧 Stripe Service URL:', this.baseUrl);
+    console.log('🌍 Environment:', isProduction ? 'production' : 'development');
   }
 
   async createCheckoutSession(request: CreateCheckoutSessionRequest): Promise<CreateCheckoutSessionResponse> {
@@ -31,14 +36,19 @@ export class StripeService {
     try {
       console.log('📡 URL utilisée:', `${this.baseUrl}/create-checkout-session`);
       
+      // Test de connectivité avant la requête principale
+      console.log('🔍 Test de connectivité...');
+      
       const response = await fetch(`${this.baseUrl}/create-checkout-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'Origin': window.location.origin,
         },
         body: JSON.stringify(request),
         mode: 'cors',
+        credentials: 'omit',
       });
 
       if (!response.ok) {

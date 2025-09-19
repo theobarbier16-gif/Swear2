@@ -31,12 +31,23 @@ app.use((req, res, next) => {
     'http://localhost:5173',
     'http://localhost:3000',
     'https://theobarbier16-gif-sw-2zzo.bolt.host',
-    'https://dazzling-klepon-250f5b.netlify.app'
+    'https://dazzling-klepon-250f5b.netlify.app',
+    // Ajouter d'autres domaines potentiels
+    'https://bolt.new',
+    'https://stackblitz.com'
   ];
   
   const origin = req.headers.origin;
+  console.log('🌍 Requête reçue depuis:', origin);
+  console.log('🔧 Origins autorisées:', allowedOrigins);
+  
   if (allowedOrigins.includes(origin as string)) {
     res.setHeader('Access-Control-Allow-Origin', origin as string);
+    console.log('✅ CORS autorisé pour:', origin);
+  } else {
+    console.log('⚠️ CORS non autorisé pour:', origin);
+    // Autoriser temporairement tous les origins pour le débogage
+    res.setHeader('Access-Control-Allow-Origin', '*');
   }
   
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -44,6 +55,7 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   
   if (req.method === 'OPTIONS') {
+    console.log('✅ Requête OPTIONS traitée');
     res.status(200).end();
     return;
   }
