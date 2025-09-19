@@ -89,6 +89,14 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       return;
     }
     
+    // Afficher un indicateur de chargement
+    const button = document.querySelector(`[data-plan="${plan.id}"]`) as HTMLButtonElement;
+    const originalText = button?.textContent;
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Création de la session...';
+    }
+    
     try {
       await stripeService.redirectToCheckout({
         planType: plan.id as 'starter' | 'pro',
@@ -98,7 +106,16 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       });
     } catch (error) {
       console.error('❌ Erreur lors de la création de la session:', error);
-      alert('Erreur lors du paiement. Veuillez réessayer ou contactez le support.');
+      
+      // Message d'erreur plus détaillé
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      alert(`Erreur: ${errorMessage}\n\nSi le problème persiste, contactez le support.`);
+    } finally {
+      // Restaurer le bouton
+      if (button && originalText) {
+        button.disabled = false;
+        button.textContent = originalText;
+      }
     }
   };
 
@@ -271,6 +288,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
                       </button>
                     ) : (
                       <button
+                        data-plan={plan.id}
                         onClick={() => handlePlanSelection(plan)}
                         className={`
                           w-full py-3 px-6 rounded-xl font-medium transition-all duration-200 shadow-lg inline-block text-center
