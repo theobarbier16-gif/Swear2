@@ -23,24 +23,33 @@ export class StripeService {
 
   async createCheckoutSession(request: CreateCheckoutSessionRequest): Promise<CreateCheckoutSessionResponse> {
     console.log('🛒 Création session Stripe réelle:', request);
+    console.log('🔗 URL Firebase Functions:', this.functionsUrl);
     
     try {
+      const payload = {
+        priceId: this.getPriceId(request.planType),
+        userId: this.getCurrentUserId(),
+        planType: request.planType,
+        userEmail: request.userEmail,
+        successUrl: request.successUrl || `${window.location.origin}/?success=true&plan=${request.planType}`,
+        cancelUrl: request.cancelUrl || `${window.location.origin}/?canceled=true`,
+      };
+      
+      console.log('📦 Payload envoyé:', payload);
+      
       const response = await fetch(`${this.functionsUrl}/create-checkout-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          priceId: this.getPriceId(request.planType),
-          userId: this.getCurrentUserId(),
-          planType: request.planType,
-          userEmail: request.userEmail,
-          successUrl: request.successUrl || `${window.location.origin}/?success=true&plan=${request.planType}`,
-          cancelUrl: request.cancelUrl || `${window.location.origin}/?canceled=true`,
-        }),
+        body: JSON.stringify(payload),
       });
 
+      console.log('📡 Réponse Firebase Functions:', response.status, response.statusText);
+      
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Erreur HTTP:', response.status, errorText);
         throw new Error(`Erreur HTTP: ${response.status}`);
       }
 
@@ -53,6 +62,9 @@ export class StripeService {
       };
     } catch (error) {
       console.error('❌ Erreur création session Stripe:', error);
+      if (error instanceof Error) {
+        throw error;
+      }
       throw new Error('Impossible de créer la session de paiement');
     }
   }
@@ -73,14 +85,19 @@ export class StripeService {
   }
 
   async redirectToCheckout(request: CreateCheckoutSessionRequest): Promise<void> {
+    console.log('🚀 Début redirection Stripe Checkout:', request);
+    
     try {
       const stripe = await this.stripePromise;
       if (!stripe) {
+        console.error('❌ Stripe non initialisé');
         throw new Error('Stripe non initialisé');
       }
 
+      console.log('✅ Stripe initialisé, création de la session...');
       const session = await this.createCheckoutSession(request);
       
+      console.log('✅ Session créée, redirection vers Stripe...', session.sessionId);
       // Redirection vers Stripe Checkout
       const { error } = await stripe.redirectToCheckout({
         sessionId: session.sessionId,
@@ -90,6 +107,8 @@ export class StripeService {
         console.error('❌ Erreur redirection Stripe:', error);
         throw new Error(error.message);
       }
+      
+      console.log('✅ Redirection Stripe réussie');
     } catch (error) {
       console.error('❌ Erreur redirection paiement:', error);
       throw error;

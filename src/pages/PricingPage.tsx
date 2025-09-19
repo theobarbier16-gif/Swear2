@@ -92,17 +92,9 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
     }
     
     // Afficher un indicateur de chargement
-    const button = document.querySelector(`[data-plan="${plan.id}"]`) as HTMLButtonElement;
-    const originalText = button?.textContent;
-    if (button) {
-      button.disabled = true;
-      button.textContent = 'Création de la session...';
-    }
+    console.log(`🔄 Redirection vers Stripe pour le plan ${plan.name}...`);
     
     try {
-      // Test de connectivité d'abord
-      console.log('🔍 Test de connectivité Firebase Functions...');
-      
       await stripeService.redirectToCheckout({
         planType: plan.id as 'starter' | 'pro',
         userEmail: emailToUse,
@@ -111,24 +103,8 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       });
     } catch (error) {
       console.error('❌ Erreur lors de la création de la session:', error);
-      
-      // Message d'erreur plus détaillé
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
-      
-      // Afficher des informations de débogage
-      console.log('🔧 Informations de débogage:');
-      console.log('- URL:', window.location.href);
-      console.log('- Hostname:', window.location.hostname);
-      console.log('- Protocol:', window.location.protocol);
-      
-      // Message d'erreur plus simple pour la démo
-      alert(`Erreur de paiement: ${errorMessage}\n\nMode démo activé - le paiement sera simulé.`);
-    } finally {
-      // Restaurer le bouton
-      if (button && originalText) {
-        button.disabled = false;
-        button.textContent = originalText;
-      }
+      alert(`Erreur de paiement: ${errorMessage}`);
     }
   };
 
@@ -301,7 +277,6 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
                       </button>
                     ) : (
                       <button
-                        data-plan={plan.id}
                         onClick={() => handlePlanSelection(plan)}
                         className={`
                           w-full py-3 px-6 rounded-xl font-medium transition-all duration-200 shadow-lg inline-block text-center

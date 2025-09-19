@@ -116,13 +116,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onBack, onShowPricing }) => {
             )}
 
             {/* Demo Credentials */}
-            {mode === 'login' && (
-              <div className="mb-6 p-4 bg-white/10 border border-white/20 rounded-xl backdrop-blur-lg">
-                <p className="text-white font-medium mb-1">Compte démo :</p>
-                <p className="text-white/80 text-sm">demo@swear.com / 123456</p>
-              </div>
-            )}
-
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* First Name & Last Name (Register only) */}
               {mode === 'register' && (

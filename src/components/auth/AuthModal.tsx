@@ -79,13 +79,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'l
           )}
 
           {/* Demo Credentials */}
-          {mode === 'login' && (
-            <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-blue-800 text-sm font-medium mb-1">Compte démo :</p>
-              <p className="text-blue-600 text-xs">demo@swear.com / 123456</p>
-            </div>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* First Name & Last Name (Register only) */}
             {mode === 'register' && (
