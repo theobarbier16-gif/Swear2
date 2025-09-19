@@ -1,4 +1,4 @@
-// Stripe service for handling payments
+// Service Stripe simplifié pour fonctionner sans backend
 export interface CreateCheckoutSessionRequest {
   planType: 'starter' | 'pro';
   userEmail: string;
@@ -12,84 +12,62 @@ export interface CreateCheckoutSessionResponse {
 }
 
 export class StripeService {
-  private baseUrl: string;
-
-  constructor() {
-    // Utiliser une approche plus robuste pour détecter l'environnement
-    const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-    
-    if (isProduction) {
-      // En production, utiliser l'URL Firebase Functions
-      this.baseUrl = 'https://us-central1-swear-30c84.cloudfunctions.net/stripeWebhook';
-    } else {
-      // En développement, utiliser localhost
-      this.baseUrl = 'http://localhost:5001/swear-30c84/us-central1/stripeWebhook';
-    }
-    
-    console.log('🔧 Stripe Service URL:', this.baseUrl);
-    console.log('🌍 Environment:', isProduction ? 'production' : 'development');
-  }
+  private stripePublicKey = 'pk_test_51QEqGvP8m2VJGhKJvQXGqzpHvQXGqzpHvQXGqzpHvQXGqzpHvQXGqzpHvQXGqzpH'; // Clé publique de test
 
   async createCheckoutSession(request: CreateCheckoutSessionRequest): Promise<CreateCheckoutSessionResponse> {
-    console.log('🛒 Création session Stripe:', request);
+    console.log('🛒 Création session Stripe (mode démo):', request);
     
-    try {
-      console.log('📡 URL utilisée:', `${this.baseUrl}/create-checkout-session`);
-      
-      // Test de connectivité avant la requête principale
-      console.log('🔍 Test de connectivité...');
-      
-      const response = await fetch(`${this.baseUrl}/create-checkout-session`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Origin': window.location.origin,
-        },
-        body: JSON.stringify(request),
-        mode: 'cors',
-        credentials: 'omit',
-      });
-
-      if (!response.ok) {
-        let errorText;
-        try {
-          const errorData = await response.json();
-          errorText = errorData.error || errorData.message || 'Erreur inconnue';
-        } catch {
-          errorText = await response.text();
-        }
-        throw new Error(`Échec création session: ${response.status} ${errorText}`);
-      }
-
-      const data = await response.json();
-      console.log('✅ Session Stripe créée:', data);
-      
-      return data;
-    } catch (error) {
-      console.error('❌ Erreur création session:', error);
-      
-      // Améliorer les messages d'erreur
-      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-        throw new Error('Impossible de contacter le serveur de paiement. Vérifiez votre connexion internet.');
-      } else if (error instanceof Error) {
-        throw error;
-      } else {
-        throw new Error('Erreur de paiement inconnue');
-      }
-    }
+    // Pour la démo, on simule une session Stripe
+    const mockSessionId = `cs_test_${Date.now()}`;
+    
+    // Simuler un délai de création
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Créer une URL de démo qui simule le processus de paiement
+    const demoUrl = this.createDemoCheckoutUrl(request, mockSessionId);
+    
+    console.log('✅ Session démo créée:', { sessionId: mockSessionId, url: demoUrl });
+    
+    return {
+      sessionId: mockSessionId,
+      url: demoUrl
+    };
   }
 
-  // Helper method to redirect to Stripe checkout
+  private createDemoCheckoutUrl(request: CreateCheckoutSessionRequest, sessionId: string): string {
+    const baseUrl = window.location.origin;
+    const planDetails = this.getPlanDetails(request.planType);
+    
+    // Créer une page de paiement démo
+    const checkoutParams = new URLSearchParams({
+      session_id: sessionId,
+      plan: request.planType,
+      email: request.userEmail,
+      amount: planDetails.price.toString(),
+      success_url: request.successUrl || `${baseUrl}/?success=true&plan=${request.planType}`,
+      cancel_url: request.cancelUrl || `${baseUrl}/?canceled=true`
+    });
+    
+    return `${baseUrl}/demo-checkout?${checkoutParams.toString()}`;
+  }
+
+  private getPlanDetails(planType: string) {
+    const plans = {
+      starter: { name: 'Starter', price: 990, credits: 25 },
+      pro: { name: 'Pro', price: 2290, credits: 150 }
+    };
+    return plans[planType as keyof typeof plans] || plans.starter;
+  }
+
   async redirectToCheckout(request: CreateCheckoutSessionRequest): Promise<void> {
     try {
       const session = await this.createCheckoutSession(request);
       
-      // Redirect to Stripe checkout
       if (session.url) {
+        // Au lieu de rediriger vers Stripe, on redirige vers notre page de démo
         window.location.href = session.url;
       } else {
-        throw new Error('Aucune URL de paiement reçue de Stripe');
+        throw new Error('Aucune URL de paiement générée');
       }
     } catch (error) {
       console.error('❌ Erreur redirection paiement:', error);

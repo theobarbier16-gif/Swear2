@@ -7,6 +7,7 @@ import ProcessingStep from './components/ProcessingStep';
 import ResultsStep from './components/ResultsStep';
 import LoginPage from './pages/LoginPage';
 import PricingPage from './pages/PricingPage';
+import DemoCheckoutPage from './pages/DemoCheckoutPage';
 import { processImageWithN8N, setDebugLogger } from './utils/imageProcessor';
 import StripeSuccess from './components/StripeSuccess';
 
@@ -18,6 +19,7 @@ export interface ClothingOptions {
 
 type Step = 'upload' | 'processing' | 'results';
 type Page = 'main' | 'login' | 'pricing' | 'stripe-success';
+type Page = 'main' | 'login' | 'pricing' | 'stripe-success' | 'demo-checkout';
 
 function App() {
   const { user, isAuthenticated, decrementCredits, refundCredits } = useAuth();
@@ -33,9 +35,16 @@ function App() {
   // Check for Stripe success/cancel parameters
   React.useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
+    const path = window.location.pathname;
     const success = urlParams.get('success');
     const canceled = urlParams.get('canceled');
     const plan = urlParams.get('plan');
+    
+    // Vérifier si on est sur la page de checkout démo
+    if (path === '/demo-checkout') {
+      setCurrentPage('demo-checkout');
+      return;
+    }
     
     if (success === 'true') {
       setCurrentPage('stripe-success');
@@ -149,6 +158,11 @@ function App() {
     sessionStorage.removeItem('stripe-plan');
     setCurrentPage('main');
   };
+  // Rendu de la page de checkout démo
+  if (currentPage === 'demo-checkout') {
+    return <DemoCheckoutPage />;
+  }
+  
   // Rendu conditionnel des pages
   if (currentPage === 'login') {
     return (

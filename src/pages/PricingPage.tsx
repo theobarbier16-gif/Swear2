@@ -121,7 +121,8 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       console.log('- Hostname:', window.location.hostname);
       console.log('- Protocol:', window.location.protocol);
       
-      alert(`Erreur de paiement: ${errorMessage}\n\nInformations de débogage:\n- URL: ${window.location.href}\n- Erreur: ${errorMessage}\n\nContactez le support si le problème persiste.`);
+      // Message d'erreur plus simple pour la démo
+      alert(`Erreur de paiement: ${errorMessage}\n\nMode démo activé - le paiement sera simulé.`);
     } finally {
       // Restaurer le bouton
       if (button && originalText) {
