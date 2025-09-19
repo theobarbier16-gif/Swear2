@@ -19,8 +19,6 @@ export interface ClothingOptions {
 }
 
 type Step = 'upload' | 'processing' | 'results';
-type Page = 'main' | 'login' | 'pricing' | 'stripe-success';
-type Page = 'main' | 'login' | 'pricing' | 'stripe-success' | 'demo-checkout';
 type Page = 'main' | 'login' | 'pricing' | 'stripe-success' | 'demo-checkout' | 'stripe-webhook';
 
 function App() {
