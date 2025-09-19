@@ -1,38 +1,36 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import * as express from 'express';
+import * as cors from 'cors';
 import Stripe from 'stripe';
 
+// Initialize Firebase Admin
 admin.initializeApp();
 
-const app = express();
-
-// CORS middleware
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
-  if (req.method === 'OPTIONS') {
-    res.sendStatus(200);
-    return;
-  }
-  next();
-});
-
-app.use(express.json());
-
 // Initialize Stripe
-const stripe = new Stripe(functions.config().stripe.secret_key, {
+const stripe = new Stripe(functions.config().stripe.secret_key || process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2023-10-16',
 });
 
-// Create checkout session endpoint
-app.post('/create-checkout-session', async (req, res) => {
+const app = express();
+
+// Middleware
+app.use(cors({ origin: true }));
+app.use(express.json());
+app.use(express.raw({ type: 'application/json' }));
+
+// Test endpoint
+app.get('/test', (req: express.Request, res: express.Response) => {
+  res.json({ 
+    message: 'Firebase Functions are working!', 
+    timestamp: new Date().toISOString() 
+  });
+});
+
+// Create Stripe checkout session
+app.post('/create-checkout-session', async (req: express.Request, res: express.Response) => {
   try {
-    const { priceId, userId } = req.body;
-    
-    console.log('Creating checkout session for:', { priceId, userId });
+    const { priceId, userId, planType } = req.body;
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
@@ -42,160 +40,82 @@ app.post('/create-checkout-session', async (req, res) => {
           quantity: 1,
         },
       ],
-      mode: 'subscription',
+      mode: 'payment',
       success_url: `${req.headers.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.origin}/pricing`,
-      client_reference_id: userId,
       metadata: {
-        userId: userId,
+        userId,
+        planType,
       },
     });
 
-    console.log('Checkout session created:', session.id);
-    res.json({ url: session.url });
+    res.json({ sessionId: session.id });
   } catch (error) {
     console.error('Error creating checkout session:', error);
     res.status(500).json({ error: 'Failed to create checkout session' });
   }
 });
 
-// Stripe webhook endpoint
-  console.log('📅 Timestamp:', new Date().toISOString());
-  console.log('🌐 Origin:', req.headers.origin);
-  console.log('📋 Headers complets:', JSON.stringify(req.headers, null, 2));
-  console.log('📦 Body type:', typeof req.body);
-  console.log('📦 Body length:', req.body ? req.body.length : 'undefined');
-    console.log('📋 Headers disponibles:', Object.keys(req.headers));
-app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+// Stripe webhook handler
+app.post('/webhook', async (req: express.Request, res: express.Response) => {
   const sig = req.headers['stripe-signature'] as string;
-  const webhookSecret = functions.config().stripe.webhook_secret;
-
-  console.log('✅ Signature Stripe trouvée:', sig.substring(0, 20) + '...');
+  const endpointSecret = functions.config().stripe.webhook_secret || process.env.STRIPE_WEBHOOK_SECRET;
 
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+    console.log('Webhook received:', event.type);
   } catch (err) {
     console.error('Webhook signature verification failed:', err);
     return res.status(400).send(`Webhook Error: ${err}`);
   }
 
-  console.log('Received webhook event:', event.type);
+  // Handle the event
+  switch (event.type) {
+    case 'checkout.session.completed':
+      const session = event.data.object as Stripe.Checkout.Session;
+      console.log('Payment successful:', session.id);
+      
+      // Update user credits in Firestore
+      if (session.metadata?.userId && session.metadata?.planType) {
+        try {
+          const credits = session.metadata.planType === 'starter' ? 25 : 150;
+          await admin.firestore()
+            .collection('users')
+            .doc(session.metadata.userId)
+            .update({
+              credits: admin.firestore.FieldValue.increment(credits),
+              lastPurchase: admin.firestore.FieldValue.serverTimestamp(),
+              planType: session.metadata.planType
+            });
+          
+          console.log(`Added ${credits} credits to user ${session.metadata.userId}`);
+        } catch (error) {
+          console.error('Error updating user credits:', error);
+        }
+      }
+      break;
 
-  try {
-    switch (event.type) {
-      case 'checkout.session.completed':
-        const session = event.data.object as Stripe.Checkout.Session;
-        await handleCheckoutSessionCompleted(session);
-        break;
-      
-      case 'customer.subscription.updated':
-        const subscription = event.data.object as Stripe.Subscription;
-        await handleSubscriptionUpdated(subscription);
-        break;
-      
-      case 'customer.subscription.deleted':
-        const deletedSubscription = event.data.object as Stripe.Subscription;
-        await handleSubscriptionDeleted(deletedSubscription);
-        break;
-      
-      default:
-        console.log(`Unhandled event type: ${event.type}`);
-    }
+    case 'payment_intent.succeeded':
+      console.log('Payment intent succeeded:', event.data.object.id);
+      break;
 
-    res.json({ received: true });
-  } catch (error) {
-    console.error('Error processing webhook:', error);
-    res.status(500).json({ error: 'Webhook processing failed' });
+    default:
+      console.log(`Unhandled event type ${event.type}`);
   }
+
+  res.json({ received: true });
 });
 
-async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
-  const userId = session.client_reference_id || session.metadata?.userId;
-  
-  if (!userId) {
-    console.error('No user ID found in session');
-    return;
-  }
-
-  console.log('Processing checkout completion for user:', userId);
-
-  // Get subscription details
-  const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
-  const priceId = subscription.items.data[0].price.id;
-
-  // Determine credits based on price ID
-  let credits = 0;
-  let planName = '';
-  
-  if (priceId === 'price_1QEqJhP8m2VJGhKJvQXGqzpH') { // Pro plan
-    credits = 25;
-    planName = 'Pro';
-  } else if (priceId === 'price_1QEqKAP8m2VJGhKJYQXGqzpH') { // Premium plan
-    credits = 150;
-    planName = 'Premium';
-  }
-
-  // Update user in Firestore
-  const userRef = admin.firestore().collection('users').doc(userId);
-  
-  await userRef.update({
-    subscription: {
-      id: subscription.id,
-      status: subscription.status,
-      priceId: priceId,
-      planName: planName,
-      currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-    },
-    credits: admin.firestore.FieldValue.increment(credits),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+// Health check endpoint
+app.get('/health', (req: express.Request, res: express.Response) => {
+  res.json({ 
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0'
   });
+});
 
-  console.log(`Added ${credits} credits to user ${userId} for ${planName} plan`);
-}
-
-async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
-  // Find user by subscription ID
-  const usersRef = admin.firestore().collection('users');
-  const snapshot = await usersRef.where('subscription.id', '==', subscription.id).get();
-  
-  if (snapshot.empty) {
-    console.error('No user found for subscription:', subscription.id);
-    return;
-  }
-
-  const userDoc = snapshot.docs[0];
-  const userId = userDoc.id;
-
-  console.log('Updating subscription for user:', userId);
-
-  await userDoc.ref.update({
-    'subscription.status': subscription.status,
-    'subscription.currentPeriodEnd': new Date(subscription.current_period_end * 1000),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
-}
-
-async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
-  // Find user by subscription ID
-  const usersRef = admin.firestore().collection('users');
-  const snapshot = await usersRef.where('subscription.id', '==', subscription.id).get();
-  
-  if (snapshot.empty) {
-    console.error('No user found for subscription:', subscription.id);
-    return;
-  }
-
-  const userDoc = snapshot.docs[0];
-  const userId = userDoc.id;
-
-  console.log('Canceling subscription for user:', userId);
-
-  await userDoc.ref.update({
-    subscription: admin.firestore.FieldValue.delete(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
-}
-
+// Export the Express app as a Firebase Function
 export const stripeWebhook = functions.https.onRequest(app);
