@@ -17,8 +17,8 @@ export class StripeService {
   private functionsUrl = 'https://us-central1-swear-30c84.cloudfunctions.net/stripeWebhook';
 
   constructor() {
-    // Utiliser la vraie clé publique Stripe
-    this.stripePromise = loadStripe('pk_test_51QEqGvP8m2VJGhKJvQXGqzpHvQXGqzpHvQXGqzpHvQXGqzpHvQXGqzpHvQXGqzpH');
+    // Clé publique Stripe réelle
+    this.stripePromise = loadStripe('pk_test_51S59C86LX1cwJPasiNmP8pMN9vBIyR3J35a7DYKwoFOCi7WhNfYFZISgdSoWTGg4XSBroUfpmndhB77CZVqitFyL0083YVHh9n');
   }
 
   async createCheckoutSession(request: CreateCheckoutSessionRequest): Promise<CreateCheckoutSessionResponse> {
@@ -58,10 +58,10 @@ export class StripeService {
   }
 
   private getPriceId(planType: string): string {
-    // IDs des prix Stripe (à remplacer par vos vrais IDs de prix)
+    // IDs des prix Stripe réels
     const priceIds = {
-      starter: 'price_1234567890abcdef', // Remplacez par votre vrai price ID Stripe
-      pro: 'price_0987654321fedcba'      // Remplacez par votre vrai price ID Stripe
+      starter: 'price_1S59Fm6LX1cwJPas3s7oS1pm', // Plan Starter 9,90€
+      pro: 'price_1S7z1B6LX1cwJPasibsPVll6'      // Plan Pro 22,90€
     };
     return priceIds[planType as keyof typeof priceIds] || priceIds.starter;
   }
