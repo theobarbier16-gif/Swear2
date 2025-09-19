@@ -38,6 +38,10 @@ export class StripeService {
     const baseUrl = window.location.origin;
     const planDetails = this.getPlanDetails(request.planType);
     
+    // Pour un vrai Stripe, on utiliserait l'URL de webhook
+    const webhookUrl = `${baseUrl}/stripe-webhook`;
+    console.log('🔗 URL webhook configurée:', webhookUrl);
+    
     // Créer une page de paiement démo
     const checkoutParams = new URLSearchParams({
       session_id: sessionId,
@@ -49,6 +53,12 @@ export class StripeService {
     });
     
     return `${baseUrl}/demo-checkout?${checkoutParams.toString()}`;
+  }
+
+  // Méthode pour obtenir l'URL du webhook à configurer dans Stripe
+  getWebhookUrl(): string {
+    const baseUrl = window.location.origin;
+    return `${baseUrl}/stripe-webhook`;
   }
 
   private getPlanDetails(planType: string) {
