@@ -22,6 +22,27 @@ const stripe = new stripe_1.default(stripeSecretKey, {
 });
 // Create Express app for webhook handling
 const app = express();
+// Configuration CORS pour permettre les requêtes depuis le domaine déployé
+app.use((req, res, next) => {
+    const allowedOrigins = [
+        'http://localhost:5173',
+        'http://localhost:3000',
+        'https://theobarbier16-gif-sw-2zzo.bolt.host',
+        'https://dazzling-klepon-250f5b.netlify.app'
+    ];
+    const origin = req.headers.origin;
+    if (allowedOrigins.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+    }
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    if (req.method === 'OPTIONS') {
+        res.status(200).end();
+        return;
+    }
+    next();
+});
 // Add a new endpoint for creating checkout sessions
 app.use(express.json());
 // Create checkout session endpoint
