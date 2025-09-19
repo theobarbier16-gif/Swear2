@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowLeft, Check, Sparkles, Crown, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { stripeService } from '../services/stripe';
 
 interface PricingPageProps {
   onBack: () => void;
@@ -46,7 +47,6 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       icon: Zap,
       color: 'bg-vinted-500',
       popular: true,
-      stripeUrl: 'https://buy.stripe.com/test_fZucMYcHubsj23adLG2VG00'
     },
     {
       id: 'pro',
@@ -64,56 +64,42 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       icon: Crown,
       color: 'bg-purple-500',
       popular: false,
-      stripeUrl: 'https://buy.stripe.com/test_3cI14gdLy0NF37eePK2VG02'
     }
   ];
 
-  const handlePlanSelection = (plan: typeof plans[0]) => {
+  const handlePlanSelection = async (plan: typeof plans[0]) => {
     if (plan.id === 'free') {
       // Plan gratuit - pas d'action nécessaire
       return;
     }
     
-    if (!plan.stripeUrl) {
-      console.error('URL Stripe manquante pour le plan:', plan.id);
-      alert('Erreur: URL de paiement non configurée');
+    if (!['starter', 'pro'].includes(plan.id)) {
+      console.error('Plan non supporté:', plan.id);
+      alert('Erreur: Plan non supporté');
       return;
     }
     
-    console.log(`🔗 Redirection vers Stripe pour le plan ${plan.name}:`, plan.stripeUrl);
+    console.log(`🔗 Création session Stripe pour le plan ${plan.name}`);
     
-    // Construire l'URL avec l'email pré-rempli si l'utilisateur est connecté
-    let stripeUrl = plan.stripeUrl;
+    // Préparer les données pour la session Stripe
+    const emailToUse = user?.email || currentUserEmail || userEmail || '';
     
-    // Ajouter l'email de l'utilisateur connecté ou l'email fourni
-    const emailToUse = user?.email || currentUserEmail || userEmail;
-    if (emailToUse) {
-      const separator = stripeUrl.includes('?') ? '&' : '?';
-      stripeUrl = `${stripeUrl}${separator}prefilled_email=${encodeURIComponent(emailToUse)}`;
-      console.log(`📧 Email pré-rempli: ${emailToUse}`);
+    if (!emailToUse) {
+      alert('Email requis pour créer la session de paiement');
+      return;
     }
     
-    console.log(`🔗 URL finale: ${stripeUrl}`);
-    
-    // Ouvrir Stripe dans un nouvel onglet pour éviter les problèmes de CORS/redirection
-    window.open(stripeUrl, '_blank', 'noopener,noreferrer');
-  };
-
-  const getStripeUrl = (plan: typeof plans[0]) => {
-    if (plan.id === 'free' || !plan.stripeUrl) {
-      return '#';
+    try {
+      await stripeService.redirectToCheckout({
+        planType: plan.id as 'starter' | 'pro',
+        userEmail: emailToUse,
+        successUrl: `${window.location.origin}/pricing?success=true&plan=${plan.id}`,
+        cancelUrl: `${window.location.origin}/pricing?canceled=true`,
+      });
+    } catch (error) {
+      console.error('❌ Erreur lors de la création de la session:', error);
+      alert('Erreur lors de la création de la session de paiement. Veuillez réessayer.');
     }
-    
-    let stripeUrl = plan.stripeUrl;
-    
-    // Ajouter l'email de l'utilisateur connecté ou l'email fourni
-    const emailToUse = user?.email || currentUserEmail || userEmail;
-    if (emailToUse) {
-      const separator = stripeUrl.includes('?') ? '&' : '?';
-      stripeUrl = `${stripeUrl}${separator}prefilled_email=${encodeURIComponent(emailToUse)}`;
-    }
-    
-    return stripeUrl;
   };
 
   const handleFreePlanClick = (e: React.MouseEvent) => {
@@ -270,26 +256,22 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
 
                     {/* CTA Button */}
                     {plan.id === 'free' ? (
-                      <a
-                        href="#"
+                      <button
                         onClick={handleFreePlanClick}
                         className="w-full py-3 px-6 rounded-xl font-medium transition-all duration-200 shadow-lg bg-white/20 text-white border-2 border-white/30 hover:bg-white/30 hover:border-white/50 hover:scale-105 inline-block text-center cursor-pointer"
                       >
                         {getButtonText(plan)}
-                      </a>
+                      </button>
                     ) : disabled ? (
-                      <a
-                        href="#"
+                      <button
                         onClick={handleDisabledClick}
                         className="w-full py-3 px-6 rounded-xl font-medium transition-all duration-200 shadow-lg bg-green-500 text-white cursor-not-allowed opacity-75 inline-block text-center"
                       >
                         {getButtonText(plan)}
-                      </a>
+                      </button>
                     ) : (
-                      <a
-                        href={getStripeUrl(plan)}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <button
+                        onClick={() => handlePlanSelection(plan)}
                         className={`
                           w-full py-3 px-6 rounded-xl font-medium transition-all duration-200 shadow-lg inline-block text-center
                           ${plan.popular
@@ -299,7 +281,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
                         `}
                       >
                         {getButtonText(plan)}
-                      </a>
+                      </button>
                     )}
                   </div>
                 </div>

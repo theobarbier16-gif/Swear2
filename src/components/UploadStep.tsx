@@ -2,6 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { Upload, ImageIcon, Sparkles, AlertCircle, User, Ruler } from 'lucide-react';
 import { ClothingOptions } from '../App';
 import { useAuth } from '../contexts/AuthContext';
+import { stripeService } from '../services/stripe';
 
 interface UploadStepProps {
   onImageUpload: (imageUrl: string, fileName: string, file: File, options: ClothingOptions) => void;

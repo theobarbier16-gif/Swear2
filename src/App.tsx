@@ -8,6 +8,7 @@ import ResultsStep from './components/ResultsStep';
 import LoginPage from './pages/LoginPage';
 import PricingPage from './pages/PricingPage';
 import { processImageWithN8N, setDebugLogger } from './utils/imageProcessor';
+import StripeSuccess from './components/StripeSuccess';
 
 export interface ClothingOptions {
   gender: 'femme' | 'homme' | 'enfant';
@@ -16,7 +17,7 @@ export interface ClothingOptions {
 }
 
 type Step = 'upload' | 'processing' | 'results';
-type Page = 'main' | 'login' | 'pricing';
+type Page = 'main' | 'login' | 'pricing' | 'stripe-success';
 
 function App() {
   const { user, isAuthenticated, decrementCredits, refundCredits } = useAuth();
@@ -28,6 +29,26 @@ function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingError, setProcessingError] = useState<string | null>(null);
   const [debugLogs, setDebugLogs] = useState<string[]>([]);
+
+  // Check for Stripe success/cancel parameters
+  React.useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const success = urlParams.get('success');
+    const canceled = urlParams.get('canceled');
+    const plan = urlParams.get('plan');
+    
+    if (success === 'true') {
+      setCurrentPage('stripe-success');
+      // Store plan type for success page
+      if (plan) {
+        sessionStorage.setItem('stripe-plan', plan);
+      }
+    } else if (canceled === 'true') {
+      // Handle cancellation - redirect to pricing with message
+      setCurrentPage('pricing');
+      // You could show a toast or message here
+    }
+  }, []);
 
   // Configuration du logger de debug
   React.useEffect(() => {
@@ -119,6 +140,12 @@ function App() {
     setCurrentPage('main');
   };
 
+  const handleStripeSuccessContinue = () => {
+    // Clear the URL parameters and go to main page
+    window.history.replaceState({}, document.title, window.location.pathname);
+    sessionStorage.removeItem('stripe-plan');
+    setCurrentPage('main');
+  };
   // Rendu conditionnel des pages
   if (currentPage === 'login') {
     return (
@@ -140,6 +167,15 @@ function App() {
     );
   }
 
+  if (currentPage === 'stripe-success') {
+    const planType = sessionStorage.getItem('stripe-plan') || undefined;
+    return (
+      <StripeSuccess 
+        planType={planType}
+        onContinue={handleStripeSuccessContinue}
+      />
+    );
+  }
   // Page principale
   return (
     <div className="min-h-screen bg-gradient-to-br from-vinted-500 via-vinted-400 to-vinted-600 relative overflow-hidden">
