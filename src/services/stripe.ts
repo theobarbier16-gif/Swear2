@@ -1,4 +1,5 @@
-// Service Stripe simplifié pour fonctionner sans backend
+import { loadStripe } from '@stripe/stripe-js';
+
 export interface CreateCheckoutSessionRequest {
   planType: 'starter' | 'pro';
   userEmail: string;
@@ -8,81 +9,96 @@ export interface CreateCheckoutSessionRequest {
 
 export interface CreateCheckoutSessionResponse {
   sessionId: string;
-  url: string;
+  url?: string;
 }
 
 export class StripeService {
-  private stripePublicKey = 'pk_test_51QEqGvP8m2VJGhKJvQXGqzpHvQXGqzpHvQXGqzpHvQXGqzpHvQXGqzpHvQXGqzpH'; // Clé publique de test
+  private stripePromise: Promise<any>;
+  private functionsUrl = 'https://us-central1-swear-30c84.cloudfunctions.net/stripeWebhook';
+
+  constructor() {
+    // Utiliser la vraie clé publique Stripe
+    this.stripePromise = loadStripe('pk_test_51QEqGvP8m2VJGhKJvQXGqzpHvQXGqzpHvQXGqzpHvQXGqzpHvQXGqzpHvQXGqzpH');
+  }
 
   async createCheckoutSession(request: CreateCheckoutSessionRequest): Promise<CreateCheckoutSessionResponse> {
-    console.log('🛒 Création session Stripe (mode démo):', request);
+    console.log('🛒 Création session Stripe réelle:', request);
     
-    // Pour la démo, on simule une session Stripe
-    const mockSessionId = `cs_test_${Date.now()}`;
-    
-    // Simuler un délai de création
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Créer une URL de démo qui simule le processus de paiement
-    const demoUrl = this.createDemoCheckoutUrl(request, mockSessionId);
-    
-    console.log('✅ Session démo créée:', { sessionId: mockSessionId, url: demoUrl });
-    
-    return {
-      sessionId: mockSessionId,
-      url: demoUrl
+    try {
+      const response = await fetch(`${this.functionsUrl}/create-checkout-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          priceId: this.getPriceId(request.planType),
+          userId: this.getCurrentUserId(),
+          planType: request.planType,
+          userEmail: request.userEmail,
+          successUrl: request.successUrl || `${window.location.origin}/?success=true&plan=${request.planType}`,
+          cancelUrl: request.cancelUrl || `${window.location.origin}/?canceled=true`,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erreur HTTP: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('✅ Session Stripe créée:', data);
+      
+      return {
+        sessionId: data.sessionId,
+        url: data.url
+      };
+    } catch (error) {
+      console.error('❌ Erreur création session Stripe:', error);
+      throw new Error('Impossible de créer la session de paiement');
+    }
+  }
+
+  private getPriceId(planType: string): string {
+    // IDs des prix Stripe (à remplacer par vos vrais IDs de prix)
+    const priceIds = {
+      starter: 'price_1234567890abcdef', // Remplacez par votre vrai price ID Stripe
+      pro: 'price_0987654321fedcba'      // Remplacez par votre vrai price ID Stripe
     };
+    return priceIds[planType as keyof typeof priceIds] || priceIds.starter;
   }
 
-  private createDemoCheckoutUrl(request: CreateCheckoutSessionRequest, sessionId: string): string {
-    const baseUrl = window.location.origin;
-    const planDetails = this.getPlanDetails(request.planType);
-    
-    // Pour un vrai Stripe, on utiliserait l'URL de webhook
-    const webhookUrl = `${baseUrl}/stripe-webhook`;
-    console.log('🔗 URL webhook configurée:', webhookUrl);
-    
-    // Créer une page de paiement démo
-    const checkoutParams = new URLSearchParams({
-      session_id: sessionId,
-      plan: request.planType,
-      email: request.userEmail,
-      amount: planDetails.price.toString(),
-      success_url: request.successUrl || `${baseUrl}/?success=true&plan=${request.planType}`,
-      cancel_url: request.cancelUrl || `${baseUrl}/?canceled=true`
-    });
-    
-    return `${baseUrl}/demo-checkout?${checkoutParams.toString()}`;
-  }
-
-  // Méthode pour obtenir l'URL du webhook à configurer dans Stripe
-  getWebhookUrl(): string {
-    const baseUrl = window.location.origin;
-    return `${baseUrl}/stripe-webhook`;
-  }
-
-  private getPlanDetails(planType: string) {
-    const plans = {
-      starter: { name: 'Starter', price: 990, credits: 25 },
-      pro: { name: 'Pro', price: 2290, credits: 150 }
-    };
-    return plans[planType as keyof typeof plans] || plans.starter;
+  private getCurrentUserId(): string {
+    // Récupérer l'ID utilisateur depuis le contexte d'authentification
+    const user = JSON.parse(localStorage.getItem('firebase:authUser:AIzaSyDRoNJkXmR7C3dt142AAz_hGCPpfKxkXxE:[DEFAULT]') || '{}');
+    return user.uid || '';
   }
 
   async redirectToCheckout(request: CreateCheckoutSessionRequest): Promise<void> {
     try {
+      const stripe = await this.stripePromise;
+      if (!stripe) {
+        throw new Error('Stripe non initialisé');
+      }
+
       const session = await this.createCheckoutSession(request);
       
-      if (session.url) {
-        // Au lieu de rediriger vers Stripe, on redirige vers notre page de démo
-        window.location.href = session.url;
-      } else {
-        throw new Error('Aucune URL de paiement générée');
+      // Redirection vers Stripe Checkout
+      const { error } = await stripe.redirectToCheckout({
+        sessionId: session.sessionId,
+      });
+
+      if (error) {
+        console.error('❌ Erreur redirection Stripe:', error);
+        throw new Error(error.message);
       }
     } catch (error) {
       console.error('❌ Erreur redirection paiement:', error);
       throw error;
     }
+  }
+
+  // Méthode pour obtenir l'URL du webhook
+  getWebhookUrl(): string {
+    return `${this.functionsUrl}/webhook`;
   }
 }
 

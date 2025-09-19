@@ -7,7 +7,6 @@ import ProcessingStep from './components/ProcessingStep';
 import ResultsStep from './components/ResultsStep';
 import LoginPage from './pages/LoginPage';
 import PricingPage from './pages/PricingPage';
-import DemoCheckoutPage from './pages/DemoCheckoutPage';
 import StripeWebhookPage from './pages/StripeWebhookPage';
 import { processImageWithN8N, setDebugLogger } from './utils/imageProcessor';
 import StripeSuccess from './components/StripeSuccess';
@@ -19,7 +18,7 @@ export interface ClothingOptions {
 }
 
 type Step = 'upload' | 'processing' | 'results';
-type Page = 'main' | 'login' | 'pricing' | 'stripe-success' | 'demo-checkout' | 'stripe-webhook';
+type Page = 'main' | 'login' | 'pricing' | 'stripe-success' | 'stripe-webhook';
 
 function App() {
   const { user, isAuthenticated, decrementCredits, refundCredits } = useAuth();
@@ -43,12 +42,6 @@ function App() {
     // Vérifier si on est sur la page de webhook Stripe
     if (path === '/stripe-webhook') {
       setCurrentPage('stripe-webhook');
-      return;
-    }
-    
-    // Vérifier si on est sur la page de checkout démo
-    if (path === '/demo-checkout') {
-      setCurrentPage('demo-checkout');
       return;
     }
     
@@ -164,11 +157,6 @@ function App() {
     sessionStorage.removeItem('stripe-plan');
     setCurrentPage('main');
   };
-  // Rendu de la page de checkout démo
-  if (currentPage === 'demo-checkout') {
-    return <DemoCheckoutPage />;
-  }
-  
   // Rendu de la page de webhook Stripe
   if (currentPage === 'stripe-webhook') {
     return <StripeWebhookPage />;
