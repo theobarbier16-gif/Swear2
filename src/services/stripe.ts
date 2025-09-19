@@ -15,12 +15,12 @@ export class StripeService {
   private baseUrl: string;
 
   constructor() {
-    // Use your Firebase Functions URL
+    // Use your Firebase Functions URL - now configured!
     this.baseUrl = 'https://us-central1-swear-30c84.cloudfunctions.net/stripeWebhook';
   }
 
   async createCheckoutSession(request: CreateCheckoutSessionRequest): Promise<CreateCheckoutSessionResponse> {
-    console.log('🛒 Creating Stripe checkout session:', request);
+    console.log('🛒 Création session Stripe:', request);
     
     try {
       const response = await fetch(`${this.baseUrl}/create-checkout-session`, {
@@ -33,15 +33,15 @@ export class StripeService {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`Failed to create checkout session: ${response.status} ${errorText}`);
+        throw new Error(`Échec création session: ${response.status} ${errorText}`);
       }
 
       const data = await response.json();
-      console.log('✅ Checkout session created:', data);
+      console.log('✅ Session Stripe créée:', data);
       
       return data;
     } catch (error) {
-      console.error('❌ Error creating checkout session:', error);
+      console.error('❌ Erreur création session:', error);
       throw error;
     }
   }
@@ -55,10 +55,10 @@ export class StripeService {
       if (session.url) {
         window.location.href = session.url;
       } else {
-        throw new Error('No checkout URL received from Stripe');
+        throw new Error('Aucune URL de paiement reçue de Stripe');
       }
     } catch (error) {
-      console.error('❌ Error redirecting to checkout:', error);
+      console.error('❌ Erreur redirection paiement:', error);
       throw error;
     }
   }

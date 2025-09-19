@@ -58,7 +58,7 @@ const StripeSuccess: React.FC<StripeSuccessProps> = ({ planType, onContinue }) =
             </h1>
             
             <p className="text-white/90 mb-6">
-              Félicitations ! Votre abonnement <strong>{planDetails.name}</strong> a été activé avec succès.
+              🎉 Félicitations ! Votre abonnement <strong>{planDetails.name}</strong> a été activé avec succès.
             </p>
 
             {/* Plan Details */}
@@ -70,7 +70,7 @@ const StripeSuccess: React.FC<StripeSuccessProps> = ({ planType, onContinue }) =
               <div className="space-y-2 text-white/80 text-sm">
                 <p>💳 {planDetails.credits} crédits par mois</p>
                 <p>💰 {planDetails.price}/mois</p>
-                <p>✅ Accès complet activé</p>
+                <p>🚀 Accès complet activé</p>
               </div>
             </div>
 
@@ -81,7 +81,7 @@ const StripeSuccess: React.FC<StripeSuccessProps> = ({ planType, onContinue }) =
                   Bonjour <strong>{user.firstName}</strong> !
                 </p>
                 <p className="text-white/70 text-xs mt-1">
-                  Vos crédits seront disponibles dans quelques instants.
+                  Vos {planDetails.credits} crédits sont maintenant disponibles !
                 </p>
               </div>
             )}

@@ -93,12 +93,12 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       await stripeService.redirectToCheckout({
         planType: plan.id as 'starter' | 'pro',
         userEmail: emailToUse,
-        successUrl: `${window.location.origin}/pricing?success=true&plan=${plan.id}`,
-        cancelUrl: `${window.location.origin}/pricing?canceled=true`,
+        successUrl: `${window.location.origin}/?success=true&plan=${plan.id}`,
+        cancelUrl: `${window.location.origin}/?canceled=true`,
       });
     } catch (error) {
       console.error('❌ Erreur lors de la création de la session:', error);
-      alert('Erreur lors de la création de la session de paiement. Veuillez réessayer.');
+      alert('Erreur lors du paiement. Veuillez réessayer ou contactez le support.');
     }
   };
 

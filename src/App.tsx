@@ -46,7 +46,10 @@ function App() {
     } else if (canceled === 'true') {
       // Handle cancellation - redirect to pricing with message
       setCurrentPage('pricing');
-      // You could show a toast or message here
+      // Afficher un message d'annulation
+      setTimeout(() => {
+        alert('Paiement annulé. Vous pouvez réessayer quand vous voulez !');
+      }, 500);
     }
   }, []);
 
