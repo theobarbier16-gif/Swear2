@@ -60,9 +60,17 @@ app.post('/create-checkout-session', async (req, res) => {
 });
 
 // Stripe webhook endpoint
+  console.log('📅 Timestamp:', new Date().toISOString());
+  console.log('🌐 Origin:', req.headers.origin);
+  console.log('📋 Headers complets:', JSON.stringify(req.headers, null, 2));
+  console.log('📦 Body type:', typeof req.body);
+  console.log('📦 Body length:', req.body ? req.body.length : 'undefined');
+    console.log('📋 Headers disponibles:', Object.keys(req.headers));
 app.post('/webhooks/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
   const sig = req.headers['stripe-signature'] as string;
   const webhookSecret = functions.config().stripe.webhook_secret;
+
+  console.log('✅ Signature Stripe trouvée:', sig.substring(0, 20) + '...');
 
   let event: Stripe.Event;
 
