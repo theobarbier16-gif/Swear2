@@ -119,3 +119,8 @@ app.get('/health', (req: express.Request, res: express.Response) => {
 
 // Export the Express app as a Firebase Function
 export const stripeWebhook = functions.https.onRequest(app);
+
+// Export a simple ping function for testing
+export const ping = functions.https.onRequest((req, res) => {
+  res.json({ message: 'Firebase Functions are working!', timestamp: new Date().toISOString() });
+});
