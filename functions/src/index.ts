@@ -15,7 +15,7 @@ app.use(cors({
   origin: [
     'http://localhost:5173',
     'http://localhost:3000',
-    'https://theobarbier16-gif-sw-zd6o.bolt.host',
+    'https://theobarbier16-gif-sw-cbqo.bolt.host',
     /\.bolt\.host$/,
     /\.netlify\.app$/
   ],
