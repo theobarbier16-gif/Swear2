@@ -12,6 +12,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "deploy:firebase": "deploy.bat",
+    "deploy:firebase:manual": "echo Suivez les instructions dans deploy-windows.md",
     "setup:firebase": "npm install -g firebase-tools && firebase login"
   },
   "dependencies": {
