@@ -33,26 +33,39 @@ export class StripeService {
   }
 
   async createCheckoutSession(request: CreateCheckoutSessionRequest): Promise<CreateCheckoutSessionResponse> {
-    console.log('🛒 Création session Stripe réelle:', request);
+    console.log('🚀 === DEBUT CREATION SESSION STRIPE ===');
+    console.log('🛒 Requête:', JSON.stringify(request, null, 2));
     console.log('🔗 URL Firebase Functions:', this.functionsUrl);
+    console.log('🌐 Hostname actuel:', window.location.hostname);
+    console.log('🔗 Origin actuel:', window.location.origin);
     
     // Test de connectivité d'abord
     try {
-      console.log('🔍 Test de connectivité...');
+      console.log('🔍 === TEST CONNECTIVITE ===');
       const healthResponse = await fetch(`${this.functionsUrl}/health`, {
         method: 'GET',
         mode: 'cors',
       });
-      console.log('✅ Health check:', healthResponse.status);
+      console.log('📡 Health check status:', healthResponse.status);
+      console.log('📡 Health check statusText:', healthResponse.statusText);
+      
       if (!healthResponse.ok) {
+        const healthText = await healthResponse.text();
+        console.error('❌ Health check failed response:', healthText);
         throw new Error(`Health check failed: ${healthResponse.status}`);
       }
+      
+      const healthData = await healthResponse.json();
+      console.log('✅ Health check data:', healthData);
     } catch (healthError) {
-      console.error('❌ Health check failed:', healthError);
+      console.error('💥 === ERREUR HEALTH CHECK ===');
+      console.error('❌ Error:', healthError);
+      console.error('💥 === FIN ERREUR HEALTH CHECK ===');
       throw new Error('Les Firebase Functions ne sont pas accessibles. Vérifiez le déploiement.');
     }
     
     try {
+      console.log('📦 === PREPARATION PAYLOAD ===');
       const payload = {
         priceId: this.getPriceId(request.planType),
         userId: this.getCurrentUserId(),
@@ -62,13 +75,18 @@ export class StripeService {
         cancelUrl: request.cancelUrl || `${window.location.origin}/?canceled=true`,
       };
       
-      console.log('📦 Payload envoyé:', payload);
+      console.log('📦 Payload complet:', JSON.stringify(payload, null, 2));
+      console.log('💰 Price ID utilisé:', payload.priceId);
+      console.log('👤 User ID:', payload.userId || 'NON TROUVE');
+      console.log('📧 Email:', payload.userEmail);
       console.log('🌐 URL cible:', `${this.functionsUrl}/create-checkout-session`);
       
       // Ajouter un timeout et une gestion d'erreur améliorée
+      console.log('⏱️ Configuration timeout 15s...');
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 secondes timeout
       
+      console.log('📡 === ENVOI REQUETE ===');
       const response = await fetch(`${this.functionsUrl}/create-checkout-session`, {
         method: 'POST',
         headers: {
@@ -81,32 +99,49 @@ export class StripeService {
       });
       
       clearTimeout(timeoutId);
+      console.log('📡 Requête terminée, timeout annulé');
 
-      console.log('📡 Réponse Firebase Functions:', response.status, response.statusText);
+      console.log('📡 === REPONSE RECUE ===');
+      console.log('📡 Status:', response.status);
+      console.log('📡 StatusText:', response.statusText);
+      console.log('📡 Headers:', Object.fromEntries(response.headers.entries()));
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Erreur HTTP:', response.status, errorText);
+        console.error('💥 === ERREUR HTTP ===');
+        console.error('❌ Status:', response.status);
+        console.error('❌ Response text:', errorText);
+        console.error('💥 === FIN ERREUR HTTP ===');
         throw new Error(`Erreur serveur (${response.status}): ${errorText || 'Service indisponible'}`);
       }
 
       const data = await response.json();
-      console.log('✅ Session Stripe créée:', data);
+      console.log('✅ === SESSION STRIPE CREEE ===');
+      console.log('✅ Data reçue:', JSON.stringify(data, null, 2));
+      console.log('🆔 Session ID:', data.sessionId);
+      console.log('🔗 URL Stripe:', data.url);
+      console.log('🎉 === FIN CREATION SESSION SUCCES ===');
       
       return {
         sessionId: data.sessionId,
         url: data.url
       };
     } catch (error) {
-      console.error('❌ Erreur création session Stripe:', error);
+      console.error('💥 === ERREUR CREATION SESSION ===');
+      console.error('❌ Error type:', error?.constructor?.name);
+      console.error('❌ Error message:', error?.message);
+      console.error('❌ Error stack:', error?.stack);
       
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
+          console.error('⏰ Timeout détecté');
           throw new Error('Délai d\'attente dépassé. Vérifiez votre connexion internet.');
         }
         if (error.message.includes('Failed to fetch')) {
+          console.error('🌐 Problème réseau détecté');
           throw new Error('Impossible de contacter le serveur de paiement. Vérifiez que les Firebase Functions sont déployées.');
         }
+        console.error('💥 === FIN ERREUR CREATION SESSION ===');
         throw error;
       }
       throw new Error('Impossible de créer la session de paiement');
