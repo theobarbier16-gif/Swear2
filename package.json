@@ -10,7 +10,9 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy:firebase": "chmod +x deploy.sh && ./deploy.sh",
+    "setup:firebase": "npm install -g firebase-tools && firebase login"
   },
   "dependencies": {
     "@stripe/stripe-js": "^7.9.0",

@@ -33,15 +33,19 @@ app.use((req, res, next) => {
 });
 
 // ✅ Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+const stripe = new Stripe(
+  functions.config().stripe?.secret_key || process.env.STRIPE_SECRET_KEY as string, 
+  {
   apiVersion: "2024-06-20",
-});
+  }
+);
 
 // ✅ Test endpoint
 app.get("/test", (_req, res) => {
   res.json({
     message: "Firebase Functions are working!",
     timestamp: new Date().toISOString(),
+    stripeConfigured: !!(functions.config().stripe?.secret_key || process.env.STRIPE_SECRET_KEY),
   });
 });
 
@@ -95,7 +99,7 @@ app.post("/create-checkout-session", async (req, res) => {
 // ✅ Stripe webhook
 app.post("/webhook", async (req, res) => {
   const sig = req.headers["stripe-signature"] as string;
-  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const endpointSecret = functions.config().stripe?.webhook_secret || process.env.STRIPE_WEBHOOK_SECRET;
 
   let event: Stripe.Event;
 
