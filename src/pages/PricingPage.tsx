@@ -18,6 +18,23 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
   
   const plans = [
     {
+      id: 'abonnement',
+      name: 'Plan Abonnement',
+      price: '9,90€',
+      period: 'par mois',
+      credits: 25,
+      features: [
+        '25 transformations par mois',
+        'Qualité haute définition',
+        'Support prioritaire',
+        'Historique des créations',
+        'Accès complet à toutes les fonctionnalités'
+      ],
+      icon: Sparkles,
+      color: 'bg-vinted-500',
+      popular: true
+    },
+    {
       id: 'free',
       name: 'Gratuit',
       price: '0€',
@@ -28,25 +45,9 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
         'Qualité standard',
         'Support communautaire'
       ],
-      icon: Sparkles,
+      icon: Zap,
       color: 'bg-gray-500',
       popular: false
-    },
-    {
-      id: 'starter',
-      name: 'Starter',
-      price: '9,90€',
-      period: 'par mois',
-      credits: 25,
-      features: [
-        '25 transformations par mois',
-        'Qualité haute définition',
-        'Support prioritaire',
-        'Historique des créations'
-      ],
-      icon: Zap,
-      color: 'bg-vinted-500',
-      popular: true,
     },
     {
       id: 'pro',
@@ -73,7 +74,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       return;
     }
     
-    if (!['starter', 'pro'].includes(plan.id)) {
+    if (!['abonnement', 'starter', 'pro'].includes(plan.id)) {
       console.error('Plan non supporté:', plan.id);
       alert('Erreur: Plan non supporté');
       return;
@@ -96,7 +97,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
     
     try {
       await stripeService.redirectToCheckout({
-        planType: plan.id as 'starter' | 'pro',
+        planType: plan.id as 'abonnement' | 'starter' | 'pro',
         userEmail: emailToUse,
         successUrl: `${window.location.origin}/?success=true&plan=${plan.id}`,
         cancelUrl: `${window.location.origin}/?canceled=true`,

@@ -75,6 +75,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const getCreditsForPlan = (plan: string): number => {
     switch (plan) {
+      case 'abonnement':
+        return 25;
       case 'starter':
         return 25;
       case 'pro':

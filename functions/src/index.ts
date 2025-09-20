@@ -129,7 +129,7 @@ app.post(
           }
 
           if (userId && planType) {
-            const credits = planType === "starter" ? 25 : 150;
+            const credits = planType === "abonnement" ? 25 : planType === "starter" ? 25 : 150;
             await admin
               .firestore()
               .collection("users")

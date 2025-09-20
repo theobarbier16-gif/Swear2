@@ -1,7 +1,7 @@
 import { loadStripe } from '@stripe/stripe-js';
 
 export interface CreateCheckoutSessionRequest {
-  planType: 'starter' | 'pro';
+  planType: 'abonnement' | 'starter' | 'pro';
   userEmail: string;
   successUrl?: string;
   cancelUrl?: string;
@@ -114,12 +114,12 @@ export class StripeService {
   }
 
   private getPriceId(planType: string): string {
-    // ⚠️ IMPORTANT: Vérifiez que ces IDs correspondent à vos prix Stripe
     const priceIds = {
-      starter: 'price_1S59Fm6LX1cwJPas3s7oS1pm', // Plan Starter 9,90€
-      pro: 'price_1S7z1B6LX1cwJPasibsPVll6'      // Plan Pro 22,90€
+      abonnement: 'price_1S59Fm6LX1cwJPas3s7oS1pm', // Plan Abonnement 9,90€
+      starter: 'price_1S59Fm6LX1cwJPas3s7oS1pm',    // Alias pour compatibilité
+      pro: 'price_1S7z1B6LX1cwJPasibsPVll6'         // Plan Pro 22,90€
     };
-    return priceIds[planType as keyof typeof priceIds] || priceIds.starter;
+    return priceIds[planType as keyof typeof priceIds] || priceIds.abonnement;
   }
 
   private getCurrentUserId(): string {

@@ -23,12 +23,14 @@ const StripeSuccess: React.FC<StripeSuccessProps> = ({ planType, onContinue }) =
 
   const getPlanDetails = (plan: string) => {
     switch (plan) {
+      case 'abonnement':
+        return { name: 'Plan Abonnement', credits: 25, price: '9,90€' };
       case 'starter':
         return { name: 'Starter', credits: 25, price: '9,90€' };
       case 'pro':
         return { name: 'Pro', credits: 150, price: '22,90€' };
       default:
-        return { name: 'Premium', credits: 25, price: '9,90€' };
+        return { name: 'Plan Abonnement', credits: 25, price: '9,90€' };
     }
   };
 
