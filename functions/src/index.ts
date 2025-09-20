@@ -11,9 +11,26 @@ admin.initializeApp();
 const app = express();
 
 // Middleware
-app.use(cors({ origin: true }));
+app.use(cors({ 
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://theobarbier16-gif-sw-zd6o.bolt.host',
+    /\.bolt\.host$/,
+    /\.netlify\.app$/
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept']
+}));
 app.use(express.json());
 app.use(express.raw({ type: "application/json" }));
+
+// Middleware de logging pour debug
+app.use((req, res, next) => {
+  console.log(`📡 ${req.method} ${req.path} - Origin: ${req.headers.origin}`);
+  next();
+});
 
 // ✅ Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
@@ -31,7 +48,14 @@ app.get("/test", (_req, res) => {
 // ✅ Create Checkout Session
 app.post("/create-checkout-session", async (req, res) => {
   try {
+    console.log('🛒 Création session checkout:', req.body);
+    
     const { priceId, userId, planType } = req.body;
+    
+    if (!priceId || !planType) {
+      console.error('❌ Paramètres manquants:', { priceId, planType });
+      return res.status(400).json({ error: 'Paramètres manquants: priceId et planType requis' });
+    }
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -57,10 +81,14 @@ app.post("/create-checkout-session", async (req, res) => {
       },
     });
 
+    console.log('✅ Session Stripe créée:', session.id);
     res.json({ sessionId: session.id });
   } catch (error) {
     console.error("❌ Error creating checkout session:", error);
-    res.status(500).json({ error: "Failed to create checkout session" });
+    res.status(500).json({ 
+      error: "Failed to create checkout session",
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 

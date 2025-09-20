@@ -446,6 +446,16 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
             <p className="text-xs text-white/60 mt-4">
               Supporte JPG, PNG, WebP • Max 25Mo
             </p>
+            
+            {/* Debug info en développement */}
+            {import.meta.env.DEV && (
+              <div className="mt-4 p-2 bg-black/20 rounded text-xs text-white/60">
+                <p>🔧 Mode développement</p>
+                <p>Auth: {isAuthenticated ? '✅' : '❌'}</p>
+                <p>Paid: {user?.hasPaid ? '✅' : '❌'}</p>
+                <p>Credits: {user?.subscription?.creditsRemaining || 0}</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

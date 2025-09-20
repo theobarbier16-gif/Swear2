@@ -14,11 +14,22 @@ export interface CreateCheckoutSessionResponse {
 
 export class StripeService {
   private stripePromise: Promise<any>;
-  private functionsUrl = 'https://us-central1-swear-30c84.cloudfunctions.net/stripeWebhook';
+  private functionsUrl: string;
 
   constructor() {
     // Clé publique Stripe réelle
     this.stripePromise = loadStripe('pk_test_51S59C86LX1cwJPasiNmP8pMN9vBIyR3J35a7DYKwoFOCi7WhNfYFZISgdSoWTGg4XSBroUfpmndhB77CZVqitFyL0083YVHh9n');
+    
+    // Déterminer l'URL des fonctions selon l'environnement
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      // Environnement local - utiliser l'émulateur Firebase
+      this.functionsUrl = 'http://localhost:5001/swear-30c84/us-central1/stripeWebhook';
+    } else {
+      // Production - utiliser les fonctions déployées
+      this.functionsUrl = 'https://us-central1-swear-30c84.cloudfunctions.net/stripeWebhook';
+    }
+    
+    console.log('🔗 Functions URL configurée:', this.functionsUrl);
   }
 
   async createCheckoutSession(request: CreateCheckoutSessionRequest): Promise<CreateCheckoutSessionResponse> {
@@ -36,22 +47,31 @@ export class StripeService {
       };
       
       console.log('📦 Payload envoyé:', payload);
+      console.log('🌐 URL cible:', `${this.functionsUrl}/create-checkout-session`);
+      
+      // Ajouter un timeout et une gestion d'erreur améliorée
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 secondes timeout
       
       const response = await fetch(`${this.functionsUrl}/create-checkout-session`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Origin': window.location.origin,
+          'Accept': 'application/json',
         },
         body: JSON.stringify(payload),
+        signal: controller.signal,
+        mode: 'cors',
       });
+      
+      clearTimeout(timeoutId);
 
       console.log('📡 Réponse Firebase Functions:', response.status, response.statusText);
       
       if (!response.ok) {
         const errorText = await response.text();
         console.error('❌ Erreur HTTP:', response.status, errorText);
-        throw new Error(`Erreur HTTP: ${response.status}`);
+        throw new Error(`Erreur serveur (${response.status}): ${errorText || 'Service indisponible'}`);
       }
 
       const data = await response.json();
@@ -63,7 +83,14 @@ export class StripeService {
       };
     } catch (error) {
       console.error('❌ Erreur création session Stripe:', error);
+      
       if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          throw new Error('Délai d\'attente dépassé. Vérifiez votre connexion internet.');
+        }
+        if (error.message.includes('Failed to fetch')) {
+          throw new Error('Impossible de contacter le serveur de paiement. Vérifiez que les Firebase Functions sont déployées.');
+        }
         throw error;
       }
       throw new Error('Impossible de créer la session de paiement');
