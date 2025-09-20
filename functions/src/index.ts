@@ -16,9 +16,7 @@ if (!STRIPE_SECRET_KEY) {
   throw new Error("Stripe secret key missing: set stripe.secret_key or STRIPE_SECRET_KEY");
 }
 
-const stripe = new Stripe(STRIPE_SECRET_KEY, {
-  apiVersion: "2024-06-20", // tu peux enlever la ligne si tu préfères
-});
+const stripe = new Stripe(STRIPE_SECRET_KEY);
 
 // ----- Express app -----
 const app = express();
@@ -91,106 +89,108 @@ app.post("/create-checkout-session", async (req: Request, res: Response) => {
 });
 
 // Webhook Stripe — RAW body uniquement
-app.post("/webhook", express.raw({ type: "application/json" }), async (req: Request, res: Response) => {
-  if (!STRIPE_WEBHOOK_SECRET) {
-    console.error("Missing STRIPE_WEBHOOK_SECRET");
-    return res.status(500).send("Server misconfigured");
-  }
-
-  const sig = req.headers["stripe-signature"] as string;
-  let event: Stripe.Event;
-
-  try {
-    event = stripe.webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SECRET);
-  } catch (err: any) {
-    console.error("❌ Webhook signature verification failed:", err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-
-  try {
-    switch (event.type) {
-      case "checkout.session.completed": {
-        const s = event.data.object as Stripe.Checkout.Session;
-        console.log("✅ checkout.session.completed", s.id);
-        // tu peux enregistrer s.customer / s.subscription
-        break;
-      }
-      case "invoice.payment_succeeded": {
-        const inv = event.data.object as Stripe.Invoice;
-        console.log("💸 invoice.payment_succeeded", inv.id);
-
-        // Récup métadonnées userId/planType
-        let userId = inv.metadata?.userId as string | undefined;
-        let planType = inv.metadata?.planType as string | undefined;
-
-        if ((!userId || !planType) && inv.subscription) {
-          const sub = await stripe.subscriptions.retrieve(inv.subscription as string);
-          userId = userId || (sub.metadata?.userId as string | undefined);
-          planType = planType || (sub.metadata?.planType as string | undefined);
-        }
-
-        if (userId && planType) {
-          const credits = planType === "starter" ? 25 : 150;
-          await admin
-            .firestore()
-            .collection("users")
-            .doc(userId)
-            .set(
-              {
-                credits: admin.firestore.FieldValue.increment(credits),
-                lastPurchase: admin.firestore.FieldValue.serverTimestamp(),
-                planType,
-                hasPaid: true,
-                subscription: {
-                  plan: planType,
-                  creditsRemaining: credits,
-                  maxCredits: credits,
-                  renewalDate: admin.firestore.FieldValue.serverTimestamp(),
-                  stripeSubscriptionId: inv.subscription || null,
-                },
-              },
-              { merge: true }
-            );
-          console.log(`✨ Added ${credits} credits to user ${userId}`);
-        } else {
-          console.warn("ℹ️ Missing userId/planType in metadata");
-        }
-        break;
-      }
-      case "customer.subscription.updated":
-      case "customer.subscription.deleted": {
-        const sub = event.data.object as Stripe.Subscription;
-        const userId = sub.metadata?.userId as string | undefined;
-        const planType = sub.metadata?.planType as string | undefined;
-        if (userId) {
-          await admin
-            .firestore()
-            .collection("users")
-            .doc(userId)
-            .set(
-              {
-                hasPaid: sub.status === "active",
-                planType: sub.status === "active" ? (planType || "starter") : "free",
-                subscription: {
-                  plan: sub.status === "active" ? (planType || "starter") : "free",
-                  stripeSubscriptionId: sub.id,
-                },
-              },
-              { merge: true }
-            );
-        }
-        break;
-      }
-      default:
-        console.log(`ℹ️ Unhandled event: ${event.type}`);
+app.post(
+  "/webhook",
+  express.raw({ type: "application/json" }),
+  async (req: Request, res: Response) => {
+    if (!STRIPE_WEBHOOK_SECRET) {
+      console.error("Missing STRIPE_WEBHOOK_SECRET");
+      return res.status(500).send("Server misconfigured");
     }
 
-    return res.json({ received: true });
-  } catch (err: any) {
-    console.error("❌ Webhook handler error:", err);
-    return res.status(500).send("Webhook handler error");
+    const sig = req.headers["stripe-signature"] as string;
+    let event: Stripe.Event;
+
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SECRET);
+    } catch (err: any) {
+      console.error("❌ Webhook signature verification failed:", err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    try {
+      switch (event.type) {
+        case "checkout.session.completed": {
+          const s = event.data.object as Stripe.Checkout.Session;
+          console.log("✅ checkout.session.completed", s.id);
+          break;
+        }
+        case "invoice.payment_succeeded": {
+          const inv = event.data.object as Stripe.Invoice & { subscription?: string };
+          console.log("💸 invoice.payment_succeeded", inv.id);
+
+          let userId = inv.metadata?.userId as string | undefined;
+          let planType = inv.metadata?.planType as string | undefined;
+
+          if ((!userId || !planType) && inv.subscription) {
+            const sub = await stripe.subscriptions.retrieve(inv.subscription);
+            userId = userId || sub.metadata?.userId;
+            planType = planType || sub.metadata?.planType;
+          }
+
+          if (userId && planType) {
+            const credits = planType === "starter" ? 25 : 150;
+            await admin
+              .firestore()
+              .collection("users")
+              .doc(userId)
+              .set(
+                {
+                  credits: admin.firestore.FieldValue.increment(credits),
+                  lastPurchase: admin.firestore.FieldValue.serverTimestamp(),
+                  planType,
+                  hasPaid: true,
+                  subscription: {
+                    plan: planType,
+                    creditsRemaining: credits,
+                    maxCredits: credits,
+                    renewalDate: admin.firestore.FieldValue.serverTimestamp(),
+                    stripeSubscriptionId: inv.subscription ?? null,
+                  },
+                },
+                { merge: true }
+              );
+            console.log(`✨ Added ${credits} credits to user ${userId}`);
+          } else {
+            console.warn("ℹ️ Missing userId/planType in metadata");
+          }
+          break;
+        }
+        case "customer.subscription.updated":
+        case "customer.subscription.deleted": {
+          const sub = event.data.object as Stripe.Subscription;
+          const userId = sub.metadata?.userId as string | undefined;
+          const planType = sub.metadata?.planType as string | undefined;
+          if (userId) {
+            await admin
+              .firestore()
+              .collection("users")
+              .doc(userId)
+              .set(
+                {
+                  hasPaid: sub.status === "active",
+                  planType: sub.status === "active" ? (planType || "starter") : "free",
+                  subscription: {
+                    plan: sub.status === "active" ? (planType || "starter") : "free",
+                    stripeSubscriptionId: sub.id,
+                  },
+                },
+                { merge: true }
+              );
+          }
+          break;
+        }
+        default:
+          console.log(`ℹ️ Unhandled event: ${event.type}`);
+      }
+
+      return res.json({ received: true });
+    } catch (err: any) {
+      console.error("❌ Webhook handler error:", err);
+      return res.status(500).send("Webhook handler error");
+    }
   }
-});
+);
 
 // Export HTTP Function (nom = api, région us-central1 comme ton ping)
 export const api = functions.region("us-central1").https.onRequest(app);
