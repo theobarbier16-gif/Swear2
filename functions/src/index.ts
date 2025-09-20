@@ -34,7 +34,7 @@ app.post("/create-checkout-session", async (req, res) => {
     const { priceId, userId, planType } = req.body;
 
     const session = await stripe.checkout.sessions.create({
-      mode: "subscription", // 👈 pour gérer les abonnements
+      mode: "subscription",
       payment_method_types: ["card"],
       line_items: [
         {
@@ -44,9 +44,16 @@ app.post("/create-checkout-session", async (req, res) => {
       ],
       success_url: `${req.headers.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.origin}/pricing`,
+      customer_email: req.body.userEmail, // 👈 Ajouter l'email client
       metadata: {
         userId,
         planType,
+      },
+      subscription_data: {
+        metadata: {
+          userId,
+          planType,
+        },
       },
     });
 
@@ -83,8 +90,20 @@ app.post("/webhook", async (req, res) => {
       const invoice = event.data.object as Stripe.Invoice;
       console.log("💸 Payment succeeded for subscription:", invoice.subscription);
 
-      const userId = invoice.metadata?.userId;
-      const planType = invoice.metadata?.planType;
+      // Récupérer les métadonnées depuis la subscription
+      let userId = invoice.metadata?.userId;
+      let planType = invoice.metadata?.planType;
+      
+      // Si pas dans invoice.metadata, chercher dans subscription.metadata
+      if (!userId || !planType) {
+        try {
+          const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+          userId = userId || subscription.metadata?.userId;
+          planType = planType || subscription.metadata?.planType;
+        } catch (error) {
+          console.error("❌ Erreur récupération subscription:", error);
+        }
+      }
 
       if (userId && planType) {
         try {
@@ -96,11 +115,21 @@ app.post("/webhook", async (req, res) => {
               credits: admin.firestore.FieldValue.increment(credits),
               lastPurchase: admin.firestore.FieldValue.serverTimestamp(),
               planType,
+              hasPaid: true,
+              subscription: {
+                plan: planType,
+                creditsRemaining: credits,
+                maxCredits: credits,
+                renewalDate: admin.firestore.FieldValue.serverTimestamp(),
+                stripeSubscriptionId: invoice.subscription,
+              },
             });
           console.log(`✨ Added ${credits} credits to user ${userId}`);
         } catch (error) {
           console.error("❌ Firestore update failed:", error);
         }
+      } else {
+        console.error("❌ Métadonnées manquantes:", { userId, planType });
       }
       break;
     }
@@ -108,13 +137,62 @@ app.post("/webhook", async (req, res) => {
     case "customer.subscription.updated": {
       const subscription = event.data.object as Stripe.Subscription;
       console.log("🔄 Subscription updated:", subscription.id);
-      console.log("➡️ Current items:", subscription.items.data.map(i => i.price.id));
+      
+      const userId = subscription.metadata?.userId;
+      const planType = subscription.metadata?.planType;
+      
+      if (userId && planType) {
+        try {
+          const credits = planType === "starter" ? 25 : 150;
+          await admin.firestore()
+            .collection("users")
+            .doc(userId)
+            .update({
+              subscription: {
+                plan: planType,
+                creditsRemaining: credits,
+                maxCredits: credits,
+                renewalDate: admin.firestore.FieldValue.serverTimestamp(),
+                stripeSubscriptionId: subscription.id,
+              },
+              planType,
+              hasPaid: subscription.status === "active",
+            });
+          console.log(`🔄 Updated subscription for user ${userId}`);
+        } catch (error) {
+          console.error("❌ Error updating subscription:", error);
+        }
+      }
       break;
     }
 
     case "customer.subscription.deleted": {
       const subscription = event.data.object as Stripe.Subscription;
       console.log("❌ Subscription cancelled:", subscription.id);
+      
+      const userId = subscription.metadata?.userId;
+      
+      if (userId) {
+        try {
+          await admin.firestore()
+            .collection("users")
+            .doc(userId)
+            .update({
+              hasPaid: false,
+              planType: "free",
+              subscription: {
+                plan: "free",
+                creditsRemaining: 3,
+                maxCredits: 3,
+                renewalDate: admin.firestore.FieldValue.serverTimestamp(),
+                stripeSubscriptionId: null,
+              },
+            });
+          console.log(`❌ Cancelled subscription for user ${userId}`);
+        } catch (error) {
+          console.error("❌ Error cancelling subscription:", error);
+        }
+      }
       break;
     }
 

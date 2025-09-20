@@ -41,6 +41,7 @@ export class StripeService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Origin': window.location.origin,
         },
         body: JSON.stringify(payload),
       });
@@ -70,7 +71,7 @@ export class StripeService {
   }
 
   private getPriceId(planType: string): string {
-    // IDs des prix Stripe réels
+    // ⚠️ IMPORTANT: Vérifiez que ces IDs correspondent à vos prix Stripe
     const priceIds = {
       starter: 'price_1S59Fm6LX1cwJPas3s7oS1pm', // Plan Starter 9,90€
       pro: 'price_1S7z1B6LX1cwJPasibsPVll6'      // Plan Pro 22,90€
@@ -79,9 +80,14 @@ export class StripeService {
   }
 
   private getCurrentUserId(): string {
-    // Récupérer l'ID utilisateur depuis le contexte d'authentification
-    const user = JSON.parse(localStorage.getItem('firebase:authUser:AIzaSyDRoNJkXmR7C3dt142AAz_hGCPpfKxkXxE:[DEFAULT]') || '{}');
-    return user.uid || '';
+    // Méthode plus robuste pour récupérer l'ID utilisateur
+    try {
+      const user = JSON.parse(localStorage.getItem('firebase:authUser:AIzaSyDRoNJkXmR7C3dt142AAz_hGCPpfKxkXxE:[DEFAULT]') || '{}');
+      return user.uid || '';
+    } catch (error) {
+      console.error('❌ Erreur récupération userId:', error);
+      return '';
+    }
   }
 
   async redirectToCheckout(request: CreateCheckoutSessionRequest): Promise<void> {
