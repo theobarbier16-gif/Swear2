@@ -1,46 +1,47 @@
-import * as functions from 'firebase-functions';
-import * as admin from 'firebase-admin';
-import * as express from 'express';
-import * as cors from 'cors';
-import Stripe from 'stripe';
+import * as functions from "firebase-functions";
+import * as admin from "firebase-admin";
+import express from "express";
+import cors from "cors";
+import Stripe from "stripe";
 
-// Initialize Firebase Admin
+// ✅ Initialisation Firebase Admin
 admin.initializeApp();
 
-// Initialize Stripe
-const stripe = new Stripe(functions.config().stripe.secret_key || process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2023-10-16',
-});
-
+// ✅ Express app
 const app = express();
 
 // Middleware
 app.use(cors({ origin: true }));
 app.use(express.json());
-app.use(express.raw({ type: 'application/json' }));
+app.use(express.raw({ type: "application/json" }));
 
-// Test endpoint
-app.get('/test', (req: express.Request, res: express.Response) => {
-  res.json({ 
-    message: 'Firebase Functions are working!', 
-    timestamp: new Date().toISOString() 
+// ✅ Stripe
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+  apiVersion: "2024-06-20",
+});
+
+// ✅ Test endpoint
+app.get("/test", (_req, res) => {
+  res.json({
+    message: "Firebase Functions are working!",
+    timestamp: new Date().toISOString(),
   });
 });
 
-// Create Stripe checkout session
-app.post('/create-checkout-session', async (req: express.Request, res: express.Response) => {
+// ✅ Create Checkout Session
+app.post("/create-checkout-session", async (req, res) => {
   try {
     const { priceId, userId, planType } = req.body;
 
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
+      mode: "subscription", // 👈 pour gérer les abonnements
+      payment_method_types: ["card"],
       line_items: [
         {
           price: priceId,
           quantity: 1,
         },
       ],
-      mode: 'payment',
       success_url: `${req.headers.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.headers.origin}/pricing`,
       metadata: {
@@ -51,76 +52,95 @@ app.post('/create-checkout-session', async (req: express.Request, res: express.R
 
     res.json({ sessionId: session.id });
   } catch (error) {
-    console.error('Error creating checkout session:', error);
-    res.status(500).json({ error: 'Failed to create checkout session' });
+    console.error("❌ Error creating checkout session:", error);
+    res.status(500).json({ error: "Failed to create checkout session" });
   }
 });
 
-// Stripe webhook handler
-app.post('/webhook', async (req: express.Request, res: express.Response) => {
-  const sig = req.headers['stripe-signature'] as string;
-  const endpointSecret = functions.config().stripe.webhook_secret || process.env.STRIPE_WEBHOOK_SECRET;
+// ✅ Stripe webhook
+app.post("/webhook", async (req, res) => {
+  const sig = req.headers["stripe-signature"] as string;
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-    console.log('Webhook received:', event.type);
-  } catch (err) {
-    console.error('Webhook signature verification failed:', err);
-    return res.status(400).send(`Webhook Error: ${err}`);
+    event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret as string);
+  } catch (err: any) {
+    console.error("❌ Webhook signature verification failed:", err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // Handle the event
+  // 🎯 Handle events
   switch (event.type) {
-    case 'checkout.session.completed':
+    case "checkout.session.completed": {
       const session = event.data.object as Stripe.Checkout.Session;
-      console.log('Payment successful:', session.id);
-      
-      // Update user credits in Firestore
-      if (session.metadata?.userId && session.metadata?.planType) {
+      console.log("✅ Checkout session completed:", session.id);
+      break;
+    }
+
+    case "invoice.payment_succeeded": {
+      const invoice = event.data.object as Stripe.Invoice;
+      console.log("💸 Payment succeeded for subscription:", invoice.subscription);
+
+      const userId = invoice.metadata?.userId;
+      const planType = invoice.metadata?.planType;
+
+      if (userId && planType) {
         try {
-          const credits = session.metadata.planType === 'starter' ? 25 : 150;
+          const credits = planType === "starter" ? 25 : 150;
           await admin.firestore()
-            .collection('users')
-            .doc(session.metadata.userId)
+            .collection("users")
+            .doc(userId)
             .update({
               credits: admin.firestore.FieldValue.increment(credits),
               lastPurchase: admin.firestore.FieldValue.serverTimestamp(),
-              planType: session.metadata.planType
+              planType,
             });
-          
-          console.log(`Added ${credits} credits to user ${session.metadata.userId}`);
+          console.log(`✨ Added ${credits} credits to user ${userId}`);
         } catch (error) {
-          console.error('Error updating user credits:', error);
+          console.error("❌ Firestore update failed:", error);
         }
       }
       break;
+    }
 
-    case 'payment_intent.succeeded':
-      console.log('Payment intent succeeded:', event.data.object.id);
+    case "customer.subscription.updated": {
+      const subscription = event.data.object as Stripe.Subscription;
+      console.log("🔄 Subscription updated:", subscription.id);
+      console.log("➡️ Current items:", subscription.items.data.map(i => i.price.id));
       break;
+    }
+
+    case "customer.subscription.deleted": {
+      const subscription = event.data.object as Stripe.Subscription;
+      console.log("❌ Subscription cancelled:", subscription.id);
+      break;
+    }
 
     default:
-      console.log(`Unhandled event type ${event.type}`);
+      console.log(`ℹ️ Unhandled event type: ${event.type}`);
   }
 
   res.json({ received: true });
 });
 
-// Health check endpoint
-app.get('/health', (req: express.Request, res: express.Response) => {
-  res.json({ 
-    status: 'healthy',
+// ✅ Health check
+app.get("/health", (_req, res) => {
+  res.json({
+    status: "healthy",
     timestamp: new Date().toISOString(),
-    version: '1.0.0'
+    version: "1.0.0",
   });
 });
 
-// Export the Express app as a Firebase Function
+// ✅ Export Express app en fonction Firebase
 export const stripeWebhook = functions.https.onRequest(app);
 
-// Export a simple ping function for testing
-export const ping = functions.https.onRequest((req, res) => {
-  res.json({ message: 'Firebase Functions are working!', timestamp: new Date().toISOString() });
+// ✅ Fonction ping simple
+export const ping = functions.https.onRequest((_req, res) => {
+  res.json({
+    message: "pong ✅",
+    timestamp: new Date().toISOString(),
+  });
 });
