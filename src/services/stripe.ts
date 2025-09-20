@@ -116,7 +116,7 @@ export class StripeService {
   private getPriceId(planType: string): string {
     const priceIds = {
       abonnement: 'price_1S59Fm6LX1cwJPas3s7oS1pm', // Plan Abonnement 9,90€
-      starter: 'price_1S59Fm6LX1cwJPas3s7oS1pm',    // Alias pour compatibilité
+      starter: 'price_1S59Fm6LX1cwJPas3s7oS1pm',    // Plan Starter 9,90€
       pro: 'price_1S7z1B6LX1cwJPasibsPVll6'         // Plan Pro 22,90€
     };
     return priceIds[planType as keyof typeof priceIds] || priceIds.abonnement;
