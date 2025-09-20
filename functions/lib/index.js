@@ -63,10 +63,11 @@ app.use((0, cors_1.default)({
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "Accept"],
 }));
-// JSON partout SAUF /webhook (Stripe a besoin du RAW body)
+// Middleware JSON SAUF pour /webhook
 app.use((req, res, next) => {
-    if (req.path === "/webhook")
-        return next();
+    if (req.originalUrl === "/webhook") {
+        return next(); // laisser le raw body pour Stripe
+    }
     return express_1.default.json()(req, res, next);
 });
 // Petit log
@@ -81,7 +82,6 @@ app.get("/health", (_req, res) => {
 // Créer une Checkout Session (abonnement)
 app.post("/create-checkout-session", async (req, res) => {
     try {
-        console.log("🚀 === DEBUT CREATE CHECKOUT SESSION ===");
         const { priceId, userId, userEmail, planType } = req.body;
         if (!priceId)
             return res.status(400).json({ error: "priceId requis" });
@@ -91,7 +91,6 @@ app.post("/create-checkout-session", async (req, res) => {
             return res.status(400).json({ error: "userEmail requis" });
         const origin = req.headers.origin ||
             "https://theobarbier16-gif-sw-zd6o.bolt.host"; // fallback utile
-        // ✅ Construis un objet typé Stripe
         const sessionParams = {
             mode: "subscription",
             line_items: [{ price: priceId, quantity: 1 }],
@@ -104,9 +103,7 @@ app.post("/create-checkout-session", async (req, res) => {
             allow_promotion_codes: true,
             automatic_tax: { enabled: true },
         };
-        console.log("🔄 Création session Stripe…");
         const session = await stripe.checkout.sessions.create(sessionParams);
-        console.log("✅ Session Stripe créée:", session.id);
         return res.json({ url: session.url, sessionId: session.id });
     }
     catch (err) {
@@ -114,7 +111,7 @@ app.post("/create-checkout-session", async (req, res) => {
         return res.status(500).json({ error: err.message || "unknown_error" });
     }
 });
-// Webhook Stripe — RAW body uniquement
+// Webhook Stripe — utiliser express.raw uniquement ici
 app.post("/webhook", express_1.default.raw({ type: "application/json" }), async (req, res) => {
     if (!STRIPE_WEBHOOK_SECRET) {
         console.error("Missing STRIPE_WEBHOOK_SECRET");

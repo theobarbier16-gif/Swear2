@@ -35,9 +35,11 @@ app.use(
   })
 );
 
-// JSON partout SAUF /webhook (Stripe a besoin du RAW body)
+// Middleware JSON SAUF pour /webhook
 app.use((req: Request, res: Response, next: NextFunction) => {
-  if (req.path === "/webhook") return next();
+  if (req.originalUrl === "/webhook") {
+    return next(); // laisser le raw body pour Stripe
+  }
   return express.json()(req, res, next);
 });
 
@@ -55,8 +57,6 @@ app.get("/health", (_req: Request, res: Response) => {
 // Créer une Checkout Session (abonnement)
 app.post("/create-checkout-session", async (req: Request, res: Response) => {
   try {
-    console.log("🚀 === DEBUT CREATE CHECKOUT SESSION ===");
-
     const { priceId, userId, userEmail, planType } = req.body as {
       priceId: string;
       userId?: string;
@@ -72,7 +72,6 @@ app.post("/create-checkout-session", async (req: Request, res: Response) => {
       (req.headers.origin as string) ||
       "https://theobarbier16-gif-sw-zd6o.bolt.host"; // fallback utile
 
-    // ✅ Construis un objet typé Stripe
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
@@ -86,10 +85,7 @@ app.post("/create-checkout-session", async (req: Request, res: Response) => {
       automatic_tax: { enabled: true },
     };
 
-    console.log("🔄 Création session Stripe…");
     const session = await stripe.checkout.sessions.create(sessionParams);
-
-    console.log("✅ Session Stripe créée:", session.id);
 
     return res.json({ url: session.url, sessionId: session.id });
   } catch (err: any) {
@@ -98,7 +94,7 @@ app.post("/create-checkout-session", async (req: Request, res: Response) => {
   }
 });
 
-// Webhook Stripe — RAW body uniquement
+// Webhook Stripe — utiliser express.raw uniquement ici
 app.post(
   "/webhook",
   express.raw({ type: "application/json" }),
