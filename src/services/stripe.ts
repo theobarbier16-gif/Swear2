@@ -3,6 +3,7 @@ import { loadStripe } from '@stripe/stripe-js';
 export interface CreateCheckoutSessionRequest {
   planType: 'abonnement' | 'starter' | 'pro';
   userEmail: string;
+  userId?: string;
   successUrl?: string;
   cancelUrl?: string;
 }
@@ -66,9 +67,18 @@ export class StripeService {
     
     try {
       console.log('📦 === PREPARATION PAYLOAD ===');
+      const userId = this.getCurrentUserId();
+      
+      // Vérifier que l'utilisateur est connecté
+      const finalUserId = request.userId || userId;
+      if (!finalUserId) {
+        console.error('❌ Aucun utilisateur connecté trouvé');
+        throw new Error('Vous devez être connecté pour effectuer un paiement. Veuillez vous reconnecter.');
+      }
+      
       const payload = {
         priceId: this.getPriceId(request.planType),
-        userId: this.getCurrentUserId(),
+        userId: finalUserId,
         planType: request.planType,
         userEmail: request.userEmail,
         successUrl: request.successUrl || `${window.location.origin}/?success=true&plan=${request.planType}`,
@@ -77,7 +87,7 @@ export class StripeService {
       
       console.log('📦 Payload complet:', JSON.stringify(payload, null, 2));
       console.log('💰 Price ID utilisé:', payload.priceId);
-      console.log('👤 User ID:', payload.userId || 'NON TROUVE');
+      console.log('👤 User ID:', payload.userId);
       console.log('📧 Email:', payload.userEmail);
       console.log('🌐 URL cible:', `${this.functionsUrl}/create-checkout-session`);
       
@@ -160,8 +170,36 @@ export class StripeService {
   private getCurrentUserId(): string {
     // Méthode plus robuste pour récupérer l'ID utilisateur
     try {
-      const user = JSON.parse(localStorage.getItem('firebase:authUser:AIzaSyDRoNJkXmR7C3dt142AAz_hGCPpfKxkXxE:[DEFAULT]') || '{}');
-      return user.uid || '';
+      // Essayer plusieurs méthodes pour récupérer l'ID utilisateur
+      
+      // Méthode 1: localStorage Firebase
+      const firebaseKey = `firebase:authUser:AIzaSyDRoNJkXmR7C3dt142AAz_hGCPpfKxkXxE:[DEFAULT]`;
+      const storedUser = localStorage.getItem(firebaseKey);
+      if (storedUser) {
+        const user = JSON.parse(storedUser);
+        if (user.uid) {
+          console.log('✅ User ID trouvé via localStorage:', user.uid);
+          return user.uid;
+        }
+      }
+      
+      // Méthode 2: Essayer d'autres clés localStorage
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.includes('firebase:authUser')) {
+          const userData = localStorage.getItem(key);
+          if (userData) {
+            const user = JSON.parse(userData);
+            if (user.uid) {
+              console.log('✅ User ID trouvé via clé alternative:', user.uid);
+              return user.uid;
+            }
+          }
+        }
+      }
+      
+      console.warn('⚠️ Aucun User ID trouvé dans localStorage');
+      return '';
     } catch (error) {
       console.error('❌ Erreur récupération userId:', error);
       return '';

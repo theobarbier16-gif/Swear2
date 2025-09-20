@@ -74,6 +74,12 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       return;
     }
     
+    // Vérifier que l'utilisateur est connecté
+    if (!isAuthenticated || !user) {
+      alert('Vous devez être connecté pour souscrire à un plan payant');
+      return;
+    }
+    
     if (!['abonnement', 'starter', 'pro'].includes(plan.id)) {
       console.error('Plan non supporté:', plan.id);
       alert('Erreur: Plan non supporté');
@@ -92,6 +98,11 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       return;
     }
     
+    if (!user?.uid) {
+      alert('Identifiant utilisateur manquant. Veuillez vous reconnecter.');
+      return;
+    }
+    
     // Afficher un indicateur de chargement
     console.log(`🔄 Redirection vers Stripe pour le plan ${plan.name}...`);
     
@@ -99,6 +110,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onBack, userEmail, currentUse
       await stripeService.redirectToCheckout({
         planType: plan.id as 'abonnement' | 'starter' | 'pro',
         userEmail: emailToUse,
+        userId: user.uid, // Ajouter explicitement l'ID utilisateur
         successUrl: `${window.location.origin}/?success=true&plan=${plan.id}`,
         cancelUrl: `${window.location.origin}/?canceled=true`,
       });

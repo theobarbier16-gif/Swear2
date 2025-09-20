@@ -72,10 +72,17 @@ app.post("/create-checkout-session", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "priceId requis" });
     }
     
+    if (!userId) {
+      console.log("❌ UserId manquant");
+      return res.status(400).json({ error: "Utilisateur non identifié. Veuillez vous reconnecter." });
+    }
+    
+    if (!userEmail) {
+      console.log("❌ UserEmail manquant");
+      return res.status(400).json({ error: "Email utilisateur requis" });
+    }
+    
     console.log("✅ PriceId reçu:", priceId);
-    console.log("👤 UserId:", userId || "non fourni");
-    console.log("📧 UserEmail:", userEmail || "non fourni");
-    console.log("📋 PlanType:", planType || "non fourni");
 
     const origin =
       (req.headers.origin as string) ||
