@@ -81,23 +81,32 @@ app.get("/health", (_req, res) => {
 // Créer une Checkout Session (abonnement)
 app.post("/create-checkout-session", async (req, res) => {
     try {
+        console.log("🚀 === DEBUT CREATE CHECKOUT SESSION ===");
         const { priceId, userId, userEmail, planType } = req.body;
         if (!priceId)
             return res.status(400).json({ error: "priceId requis" });
+        if (!userId)
+            return res.status(400).json({ error: "userId requis" });
+        if (!userEmail)
+            return res.status(400).json({ error: "userEmail requis" });
         const origin = req.headers.origin ||
             "https://theobarbier16-gif-sw-zd6o.bolt.host"; // fallback utile
-        const session = await stripe.checkout.sessions.create({
+        // ✅ Construis un objet typé Stripe
+        const sessionParams = {
             mode: "subscription",
             line_items: [{ price: priceId, quantity: 1 }],
             success_url: `${origin}/success?session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: `${origin}/pricing`,
             customer_email: userEmail,
             client_reference_id: userId,
-            metadata: { userId: userId || "", planType: planType || "" },
-            subscription_data: { metadata: { userId: userId || "", planType: planType || "" } },
+            metadata: { userId: userId ?? "", planType: planType ?? "" },
+            subscription_data: { metadata: { userId: userId ?? "", planType: planType ?? "" } },
             allow_promotion_codes: true,
             automatic_tax: { enabled: true },
-        });
+        };
+        console.log("🔄 Création session Stripe…");
+        const session = await stripe.checkout.sessions.create(sessionParams);
+        console.log("✅ Session Stripe créée:", session.id);
         return res.json({ url: session.url, sessionId: session.id });
     }
     catch (err) {
@@ -129,7 +138,6 @@ app.post("/webhook", express_1.default.raw({ type: "application/json" }), async 
             }
             case "invoice.payment_succeeded": {
                 const inv = event.data.object;
-                console.log("💸 invoice.payment_succeeded", inv.id);
                 let userId = inv.metadata?.userId;
                 let planType = inv.metadata?.planType;
                 if ((!userId || !planType) && inv.subscription) {
@@ -139,11 +147,7 @@ app.post("/webhook", express_1.default.raw({ type: "application/json" }), async 
                 }
                 if (userId && planType) {
                     const credits = planType === "starter" ? 25 : 150;
-                    await admin
-                        .firestore()
-                        .collection("users")
-                        .doc(userId)
-                        .set({
+                    await admin.firestore().collection("users").doc(userId).set({
                         credits: admin.firestore.FieldValue.increment(credits),
                         lastPurchase: admin.firestore.FieldValue.serverTimestamp(),
                         planType,
@@ -158,9 +162,6 @@ app.post("/webhook", express_1.default.raw({ type: "application/json" }), async 
                     }, { merge: true });
                     console.log(`✨ Added ${credits} credits to user ${userId}`);
                 }
-                else {
-                    console.warn("ℹ️ Missing userId/planType in metadata");
-                }
                 break;
             }
             case "customer.subscription.updated":
@@ -169,11 +170,7 @@ app.post("/webhook", express_1.default.raw({ type: "application/json" }), async 
                 const userId = sub.metadata?.userId;
                 const planType = sub.metadata?.planType;
                 if (userId) {
-                    await admin
-                        .firestore()
-                        .collection("users")
-                        .doc(userId)
-                        .set({
+                    await admin.firestore().collection("users").doc(userId).set({
                         hasPaid: sub.status === "active",
                         planType: sub.status === "active" ? (planType || "starter") : "free",
                         subscription: {
@@ -194,5 +191,5 @@ app.post("/webhook", express_1.default.raw({ type: "application/json" }), async 
         return res.status(500).send("Webhook handler error");
     }
 });
-// Export HTTP Function (nom = api, région us-central1 comme ton ping)
+// Export HTTP Function
 exports.api = functions.region("us-central1").https.onRequest(app);
