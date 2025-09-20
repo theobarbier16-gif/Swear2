@@ -23,10 +23,10 @@ export class StripeService {
     // Déterminer l'URL des fonctions selon l'environnement
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
       // Environnement local - utiliser l'émulateur Firebase
-      this.functionsUrl = 'http://localhost:5001/swear-30c84/us-central1/stripeWebhook';
+      this.functionsUrl = 'http://localhost:5001/swear-30c84/us-central1/api';
     } else {
       // Production - utiliser les fonctions déployées
-      this.functionsUrl = 'https://us-central1-swear-30c84.cloudfunctions.net/stripeWebhook';
+      this.functionsUrl = 'https://us-central1-swear-30c84.cloudfunctions.net/api';
     }
     
     console.log('🔗 Functions URL configurée:', this.functionsUrl);
@@ -35,6 +35,22 @@ export class StripeService {
   async createCheckoutSession(request: CreateCheckoutSessionRequest): Promise<CreateCheckoutSessionResponse> {
     console.log('🛒 Création session Stripe réelle:', request);
     console.log('🔗 URL Firebase Functions:', this.functionsUrl);
+    
+    // Test de connectivité d'abord
+    try {
+      console.log('🔍 Test de connectivité...');
+      const healthResponse = await fetch(`${this.functionsUrl}/health`, {
+        method: 'GET',
+        mode: 'cors',
+      });
+      console.log('✅ Health check:', healthResponse.status);
+      if (!healthResponse.ok) {
+        throw new Error(`Health check failed: ${healthResponse.status}`);
+      }
+    } catch (healthError) {
+      console.error('❌ Health check failed:', healthError);
+      throw new Error('Les Firebase Functions ne sont pas accessibles. Vérifiez le déploiement.');
+    }
     
     try {
       const payload = {
