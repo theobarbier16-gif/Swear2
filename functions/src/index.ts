@@ -27,7 +27,7 @@ app.use(
     origin: [
       "http://localhost:5173",
       "http://localhost:3000",
-      "https://theobarbier16-gif-sw-cbqo.bolt.host",
+      "https://theobarbier16-gif-sw-f1q9.bolt.host",
       "https://api.stripe.com",
       "https://hooks.stripe.com",
     ],
