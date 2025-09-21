@@ -1,5 +1,18 @@
 import { loadStripe } from '@stripe/stripe-js';
 
+// Fonction de logging pour le service Stripe
+const logStripe = (level: 'INFO' | 'WARN' | 'ERROR', message: string, data?: any) => {
+  const timestamp = new Date().toISOString();
+  const logMessage = `[STRIPE-SERVICE] [${timestamp}] [${level}] ${message}`;
+  
+  if (level === 'ERROR') {
+    console.error(logMessage, data ? JSON.stringify(data, null, 2) : '');
+  } else if (level === 'WARN') {
+    console.warn(logMessage, data ? JSON.stringify(data, null, 2) : '');
+  } else {
+    console.log(logMessage, data ? JSON.stringify(data, null, 2) : '');
+  }
+};
 export interface CreateCheckoutSessionRequest {
   planType: 'abonnement' | 'starter' | 'pro';
   userEmail: string;
@@ -18,6 +31,8 @@ export class StripeService {
   private functionsUrl: string;
 
   constructor() {
+    logStripe('INFO', 'Initialisation StripeService');
+    
     // Clé publique Stripe réelle
     this.stripePromise = loadStripe('pk_test_51S59C86LX1cwJPasiNmP8pMN9vBIyR3J35a7DYKwoFOCi7WhNfYFZISgdSoWTGg4XSBroUfpmndhB77CZVqitFyL0083YVHh9n');
     
@@ -30,49 +45,59 @@ export class StripeService {
       this.functionsUrl = 'https://us-central1-swear-30c84.cloudfunctions.net/api';
     }
     
-    console.log('🔗 Functions URL configurée:', this.functionsUrl);
+    logStripe('INFO', 'Configuration terminée', {
+      functionsUrl: this.functionsUrl,
+      hostname: window.location.hostname,
+      environment: window.location.hostname === 'localhost' ? 'local' : 'production'
+    });
   }
 
   async createCheckoutSession(request: CreateCheckoutSessionRequest): Promise<CreateCheckoutSessionResponse> {
-    console.log('🚀 === DEBUT CREATION SESSION STRIPE ===');
-    console.log('🛒 Requête:', JSON.stringify(request, null, 2));
-    console.log('🔗 URL Firebase Functions:', this.functionsUrl);
-    console.log('🌐 Hostname actuel:', window.location.hostname);
-    console.log('🔗 Origin actuel:', window.location.origin);
+    logStripe('INFO', 'Début création session Stripe', {
+      request,
+      functionsUrl: this.functionsUrl,
+      hostname: window.location.hostname,
+      origin: window.location.origin
+    });
     
     // Test de connectivité d'abord
     try {
-      console.log('🔍 === TEST CONNECTIVITE ===');
+      logStripe('INFO', 'Test de connectivité...');
       const healthResponse = await fetch(`${this.functionsUrl}/health`, {
         method: 'GET',
         mode: 'cors',
       });
-      console.log('📡 Health check status:', healthResponse.status);
-      console.log('📡 Health check statusText:', healthResponse.statusText);
+      
+      logStripe('INFO', 'Réponse health check', {
+        status: healthResponse.status,
+        statusText: healthResponse.statusText,
+        headers: Object.fromEntries(healthResponse.headers.entries())
+      });
       
       if (!healthResponse.ok) {
         const healthText = await healthResponse.text();
-        console.error('❌ Health check failed response:', healthText);
+        logStripe('ERROR', 'Health check échoué', { response: healthText });
         throw new Error(`Health check failed: ${healthResponse.status}`);
       }
       
       const healthData = await healthResponse.json();
-      console.log('✅ Health check data:', healthData);
+      logStripe('INFO', 'Health check réussi', healthData);
     } catch (healthError) {
-      console.error('💥 === ERREUR HEALTH CHECK ===');
-      console.error('❌ Error:', healthError);
-      console.error('💥 === FIN ERREUR HEALTH CHECK ===');
+      logStripe('ERROR', 'Erreur health check', {
+        message: healthError instanceof Error ? healthError.message : healthError,
+        stack: healthError instanceof Error ? healthError.stack : undefined
+      });
       throw new Error('Les Firebase Functions ne sont pas accessibles. Vérifiez le déploiement.');
     }
     
     try {
-      console.log('📦 === PREPARATION PAYLOAD ===');
+      logStripe('INFO', 'Préparation du payload');
       const userId = this.getCurrentUserId();
       
       // Vérifier que l'utilisateur est connecté
       const finalUserId = request.userId || userId;
       if (!finalUserId) {
-        console.error('❌ Aucun utilisateur connecté trouvé');
+        logStripe('ERROR', 'Aucun utilisateur connecté trouvé');
         throw new Error('Vous devez être connecté pour effectuer un paiement. Veuillez vous reconnecter.');
       }
       
@@ -85,18 +110,17 @@ export class StripeService {
         cancelUrl: request.cancelUrl || `${window.location.origin}/?canceled=true`,
       };
       
-      console.log('📦 Payload complet:', JSON.stringify(payload, null, 2));
-      console.log('💰 Price ID utilisé:', payload.priceId);
-      console.log('👤 User ID:', payload.userId);
-      console.log('📧 Email:', payload.userEmail);
-      console.log('🌐 URL cible:', `${this.functionsUrl}/create-checkout-session`);
+      logStripe('INFO', 'Payload préparé', {
+        payload,
+        targetUrl: `${this.functionsUrl}/create-checkout-session`
+      });
       
       // Ajouter un timeout et une gestion d'erreur améliorée
-      console.log('⏱️ Configuration timeout 15s...');
+      logStripe('INFO', 'Configuration timeout 15s');
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 secondes timeout
       
-      console.log('📡 === ENVOI REQUETE ===');
+      logStripe('INFO', 'Envoi de la requête');
       const response = await fetch(`${this.functionsUrl}/create-checkout-session`, {
         method: 'POST',
         headers: {
@@ -109,49 +133,51 @@ export class StripeService {
       });
       
       clearTimeout(timeoutId);
-      console.log('📡 Requête terminée, timeout annulé');
+      logStripe('INFO', 'Requête terminée, timeout annulé');
 
-      console.log('📡 === REPONSE RECUE ===');
-      console.log('📡 Status:', response.status);
-      console.log('📡 StatusText:', response.statusText);
-      console.log('📡 Headers:', Object.fromEntries(response.headers.entries()));
+      logStripe('INFO', 'Réponse reçue', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
+      });
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('💥 === ERREUR HTTP ===');
-        console.error('❌ Status:', response.status);
-        console.error('❌ Response text:', errorText);
-        console.error('💥 === FIN ERREUR HTTP ===');
+        logStripe('ERROR', 'Erreur HTTP', {
+          status: response.status,
+          statusText: response.statusText,
+          responseText: errorText
+        });
         throw new Error(`Erreur serveur (${response.status}): ${errorText || 'Service indisponible'}`);
       }
 
       const data = await response.json();
-      console.log('✅ === SESSION STRIPE CREEE ===');
-      console.log('✅ Data reçue:', JSON.stringify(data, null, 2));
-      console.log('🆔 Session ID:', data.sessionId);
-      console.log('🔗 URL Stripe:', data.url);
-      console.log('🎉 === FIN CREATION SESSION SUCCES ===');
+      logStripe('INFO', 'Session Stripe créée avec succès', {
+        sessionId: data.sessionId,
+        url: data.url,
+        fullResponse: data
+      });
       
       return {
         sessionId: data.sessionId,
         url: data.url
       };
     } catch (error) {
-      console.error('💥 === ERREUR CREATION SESSION ===');
-      console.error('❌ Error type:', error?.constructor?.name);
-      console.error('❌ Error message:', error?.message);
-      console.error('❌ Error stack:', error?.stack);
+      logStripe('ERROR', 'Erreur création session', {
+        errorType: error?.constructor?.name,
+        message: error?.message,
+        stack: error?.stack
+      });
       
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
-          console.error('⏰ Timeout détecté');
+          logStripe('ERROR', 'Timeout détecté');
           throw new Error('Délai d\'attente dépassé. Vérifiez votre connexion internet.');
         }
         if (error.message.includes('Failed to fetch')) {
-          console.error('🌐 Problème réseau détecté');
+          logStripe('ERROR', 'Problème réseau détecté');
           throw new Error('Impossible de contacter le serveur de paiement. Vérifiez que les Firebase Functions sont déployées.');
         }
-        console.error('💥 === FIN ERREUR CREATION SESSION ===');
         throw error;
       }
       throw new Error('Impossible de créer la session de paiement');
@@ -164,10 +190,16 @@ export class StripeService {
       starter: 'price_1S59Fm6LX1cwJPas3s7oS1pm',    // Plan Starter 9,90€
       pro: 'price_1S7z1B6LX1cwJPasibsPVll6'         // Plan Pro 22,90€
     };
-    return priceIds[planType as keyof typeof priceIds] || priceIds.abonnement;
+    
+    const priceId = priceIds[planType as keyof typeof priceIds] || priceIds.abonnement;
+    logStripe('INFO', 'Price ID sélectionné', { planType, priceId });
+    
+    return priceId;
   }
 
   private getCurrentUserId(): string {
+    logStripe('INFO', 'Récupération User ID');
+    
     // Méthode plus robuste pour récupérer l'ID utilisateur
     try {
       // Essayer plusieurs méthodes pour récupérer l'ID utilisateur
@@ -178,7 +210,7 @@ export class StripeService {
       if (storedUser) {
         const user = JSON.parse(storedUser);
         if (user.uid) {
-          console.log('✅ User ID trouvé via localStorage:', user.uid);
+          logStripe('INFO', 'User ID trouvé via localStorage', { uid: user.uid });
           return user.uid;
         }
       }
@@ -191,48 +223,48 @@ export class StripeService {
           if (userData) {
             const user = JSON.parse(userData);
             if (user.uid) {
-              console.log('✅ User ID trouvé via clé alternative:', user.uid);
+              logStripe('INFO', 'User ID trouvé via clé alternative', { uid: user.uid, key });
               return user.uid;
             }
           }
         }
       }
       
-      console.warn('⚠️ Aucun User ID trouvé dans localStorage');
+      logStripe('WARN', 'Aucun User ID trouvé dans localStorage');
       return '';
     } catch (error) {
-      console.error('❌ Erreur récupération userId:', error);
+      logStripe('ERROR', 'Erreur récupération userId', { error });
       return '';
     }
   }
 
   async redirectToCheckout(request: CreateCheckoutSessionRequest): Promise<void> {
-    console.log('🚀 Début redirection Stripe Checkout:', request);
+    logStripe('INFO', 'Début redirection Stripe Checkout', request);
     
     try {
       const stripe = await this.stripePromise;
       if (!stripe) {
-        console.error('❌ Stripe non initialisé');
+        logStripe('ERROR', 'Stripe non initialisé');
         throw new Error('Stripe non initialisé');
       }
 
-      console.log('✅ Stripe initialisé, création de la session...');
+      logStripe('INFO', 'Stripe initialisé, création de la session...');
       const session = await this.createCheckoutSession(request);
       
-      console.log('✅ Session créée, redirection vers Stripe...', session.sessionId);
+      logStripe('INFO', 'Session créée, redirection vers Stripe', { sessionId: session.sessionId });
       // Redirection vers Stripe Checkout
       const { error } = await stripe.redirectToCheckout({
         sessionId: session.sessionId,
       });
 
       if (error) {
-        console.error('❌ Erreur redirection Stripe:', error);
+        logStripe('ERROR', 'Erreur redirection Stripe', error);
         throw new Error(error.message);
       }
       
-      console.log('✅ Redirection Stripe réussie');
+      logStripe('INFO', 'Redirection Stripe réussie');
     } catch (error) {
-      console.error('❌ Erreur redirection paiement:', error);
+      logStripe('ERROR', 'Erreur redirection paiement', error);
       throw error;
     }
   }
