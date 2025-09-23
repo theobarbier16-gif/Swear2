@@ -52,18 +52,11 @@ export class StripeService {
     
     if (this.isLocalEnvironment) {
       // Environnement local - utiliser l'émulateur Firebase
-      this.functionsUrl = 'http://localhost:5001/swear-30c84/us-central1/api';
+      this.functionsUrl = 'http://localhost:5001/swear-30c84/us-central1';
       logStripe('INFO', 'Environnement LOCAL détecté');
     } else {
       // Production - utiliser les fonctions déployées
-      // Essayer plusieurs URLs possibles
-      const possibleUrls = [
-        'https://us-central1-swear-30c84.cloudfunctions.net/createCheckout',
-        'https://createcheckout-abcdefghij-uc.a.run.app', // Gen2 format
-        'https://us-central1-swear-30c84.cloudfunctions.net/stripeWebhook/create-checkout-session'
-      ];
-      
-      // Pour l'instant, utiliser la première URL (Gen1 format)
+      // URL de base pour les Firebase Functions Gen2
       this.functionsUrl = 'https://us-central1-swear-30c84.cloudfunctions.net';
       logStripe('INFO', 'Environnement PRODUCTION détecté');
     }
@@ -90,15 +83,14 @@ export class StripeService {
     try {
       logStripe('INFO', 'Test de connectivité...');
       
-      // Essayer plusieurs endpoints de test
-      const testEndpoints = this.isLocalEnvironment 
-        ? [`${this.functionsUrl}/health`]
-        : [
-            `${this.functionsUrl}/createCheckout`,
-            `${this.functionsUrl}/stripeWebhook`,
-            'https://us-central1-swear-30c84.cloudfunctions.net/createCheckout',
-            'https://us-central1-swear-30c84.cloudfunctions.net/stripeWebhook'
-          ];
+      // Tester les endpoints réels de vos Firebase Functions
+      const testEndpoints = [
+        `${this.functionsUrl}/createCheckout`,
+        `${this.functionsUrl}/stripeWebhook`,
+        // Essayer aussi les URLs directes au cas où
+        'https://createcheckout-abcdefghij-uc.a.run.app', // Format Gen2 Cloud Run
+        'https://stripewebhook-abcdefghij-uc.a.run.app'   // Format Gen2 Cloud Run
+      ];
       
       logStripe('INFO', 'Test des endpoints', { testEndpoints });
       
@@ -108,23 +100,28 @@ export class StripeService {
       for (const endpoint of testEndpoints) {
         try {
           logStripe('INFO', `Test endpoint: ${endpoint}`);
-          healthResponse = await fetch(endpoint, {
-            method: 'GET',
+          
+          // Pour les Firebase Functions, on teste avec une requête OPTIONS d'abord (CORS preflight)
+          const testResponse = await fetch(endpoint, {
+            method: 'OPTIONS',
             mode: 'cors',
             headers: {
               'Accept': 'application/json',
-              'Content-Type': 'application/json'
+              'Content-Type': 'application/json',
+              'Origin': window.location.origin
             }
           });
           
-          logStripe('INFO', `Réponse de ${endpoint}`, {
-            status: healthResponse.status,
-            statusText: healthResponse.statusText,
-            headers: Object.fromEntries(healthResponse.headers.entries())
+          logStripe('INFO', `Réponse OPTIONS de ${endpoint}`, {
+            status: testResponse.status,
+            statusText: testResponse.statusText,
+            headers: Object.fromEntries(testResponse.headers.entries())
           });
           
-          if (healthResponse.status < 500) {
+          // Si OPTIONS fonctionne ou retourne 405 (Method Not Allowed), l'endpoint existe
+          if (testResponse.status === 200 || testResponse.status === 204 || testResponse.status === 405) {
             workingEndpoint = endpoint;
+            healthResponse = testResponse;
             logStripe('INFO', `Endpoint fonctionnel trouvé: ${endpoint}`);
             break;
           }
@@ -136,51 +133,36 @@ export class StripeService {
       }
       
       if (!workingEndpoint) {
-        logStripe('ERROR', 'Aucun endpoint fonctionnel trouvé');
-        throw new Error('Aucune Firebase Function accessible. Vérifiez le déploiement.');
+        logStripe('ERROR', 'Aucun endpoint fonctionnel trouvé - Tentative directe');
+        // Si aucun endpoint ne répond, on essaie quand même avec l'URL principale
+        workingEndpoint = `${this.functionsUrl}/createCheckout`;
+        logStripe('WARN', `Utilisation de l'endpoint par défaut: ${workingEndpoint}`);
       }
       
-      // Mettre à jour l'URL de base si nécessaire
-      if (workingEndpoint !== `${this.functionsUrl}/health`) {
-        const baseUrl = workingEndpoint.replace(/\/(createCheckout|stripeWebhook|health)$/, '');
+      // Mettre à jour l'URL de base si on a trouvé un endpoint Cloud Run
+      if (workingEndpoint && workingEndpoint.includes('.run.app')) {
+        // Pour Cloud Run, on utilise l'URL complète
+        logStripe('INFO', `Endpoint Cloud Run détecté: ${workingEndpoint}`);
+      } else if (workingEndpoint) {
+        const baseUrl = workingEndpoint.replace(/\/(createCheckout|stripeWebhook)$/, '');
         if (baseUrl !== this.functionsUrl) {
           logStripe('INFO', `Mise à jour URL de base: ${this.functionsUrl} → ${baseUrl}`);
           this.functionsUrl = baseUrl;
         }
       }
       
-      if (!healthResponse) {
-        throw new Error('Aucune réponse des Firebase Functions');
-      }
-      
-      if (healthResponse.status >= 500) {
-        const healthText = await healthResponse.text().catch(() => 'Erreur serveur');
-        logStripe('ERROR', 'Erreur serveur sur health check', { 
-          status: healthResponse.status,
-          response: healthText 
-        });
-        throw new Error(`Erreur serveur Firebase Functions: ${healthResponse.status}`);
-      }
-      
-      try {
-        const healthData = await healthResponse.json();
-        logStripe('INFO', 'Health check réussi', healthData);
-      } catch (jsonError) {
-        // Pas grave si ce n'est pas du JSON, l'important c'est que l'endpoint réponde
-        logStripe('INFO', 'Endpoint accessible (réponse non-JSON)', {
-          status: healthResponse.status,
-          contentType: healthResponse.headers.get('content-type')
-        });
-      }
+      logStripe('INFO', 'Test de connectivité terminé', {
+        workingEndpoint,
+        finalFunctionsUrl: this.functionsUrl
+      });
       
     } catch (healthError) {
-      logStripe('ERROR', 'Erreur health check', {
+      logStripe('WARN', 'Erreur test de connectivité - Continuation avec URL par défaut', {
         message: healthError instanceof Error ? healthError.message : healthError,
-        stack: healthError instanceof Error ? healthError.stack : undefined,
         functionsUrl: this.functionsUrl,
         isLocalEnvironment: this.isLocalEnvironment
       });
-      throw new Error(`Les Firebase Functions ne sont pas accessibles: ${healthError instanceof Error ? healthError.message : 'Erreur inconnue'}`);
+      // Ne pas lancer d'erreur ici, on essaie quand même la requête principale
     }
     
     try {
@@ -195,6 +177,18 @@ export class StripeService {
       }
       
       const payload = {
+        data: {
+          priceId: this.getPriceId(request.planType),
+          userId: finalUserId,
+          planType: request.planType,
+          userEmail: request.userEmail,
+          successUrl: request.successUrl || `${window.location.origin}/?success=true&plan=${request.planType}`,
+          cancelUrl: request.cancelUrl || `${window.location.origin}/?canceled=true`,
+        }
+      };
+      
+      // Payload alternatif pour les requêtes directes (non-callable)
+      const directPayload = {
         priceId: this.getPriceId(request.planType),
         userId: finalUserId,
         planType: request.planType,
@@ -203,42 +197,102 @@ export class StripeService {
         cancelUrl: request.cancelUrl || `${window.location.origin}/?canceled=true`,
       };
       
-      // Déterminer l'endpoint final
-      const finalEndpoint = this.isLocalEnvironment 
-        ? `${this.functionsUrl}/create-checkout-session`
-        : `${this.functionsUrl}/createCheckout`; // Fonction callable Firebase
+      // Déterminer l'endpoint et le payload selon le type de fonction
+      let finalEndpoint: string;
+      let finalPayload: any;
+      let useCallableFunction = true;
+      
+      if (this.functionsUrl.includes('.run.app')) {
+        // Cloud Run - requête directe
+        finalEndpoint = this.functionsUrl;
+        finalPayload = directPayload;
+        useCallableFunction = false;
+        logStripe('INFO', 'Mode Cloud Run détecté');
+      } else {
+        // Firebase Functions classique - fonction callable
+        finalEndpoint = `${this.functionsUrl}/createCheckout`;
+        finalPayload = payload;
+        logStripe('INFO', 'Mode Firebase Functions callable détecté');
+      }
       
       logStripe('INFO', 'Payload et endpoint préparés', {
-        payload,
+        payload: finalPayload,
         targetUrl: finalEndpoint,
-        isLocalEnvironment: this.isLocalEnvironment
+        isLocalEnvironment: this.isLocalEnvironment,
+        isCloudRun: this.functionsUrl.includes('.run.app'),
+        useCallableFunction
       });
       
-      // Ajouter un timeout et une gestion d'erreur améliorée
-      logStripe('INFO', 'Configuration timeout 20s');
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => {
-        logStripe('WARN', 'Timeout atteint, annulation de la requête');
-        controller.abort();
-      }, 20000); // 20 secondes timeout
+      // Essayer d'abord la fonction callable, puis fallback sur HTTP
+      let response: Response;
+      let attemptCount = 0;
+      const maxAttempts = useCallableFunction ? 2 : 1;
       
-      logStripe('INFO', 'Envoi de la requête POST');
-      const response = await fetch(finalEndpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Origin': window.location.origin,
-          'Referer': window.location.href,
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-        mode: 'cors',
-        credentials: 'omit',
-      });
-      
-      clearTimeout(timeoutId);
-      logStripe('INFO', 'Requête terminée, timeout annulé');
+      while (attemptCount < maxAttempts) {
+        attemptCount++;
+        const currentEndpoint = attemptCount === 1 ? finalEndpoint : `${this.functionsUrl}/createCheckoutHttp`;
+        const currentPayload = attemptCount === 1 ? finalPayload : directPayload;
+        
+        logStripe('INFO', `Tentative ${attemptCount}/${maxAttempts}`, {
+          endpoint: currentEndpoint,
+          payloadType: attemptCount === 1 ? 'callable' : 'http'
+        });
+        
+        // Ajouter un timeout et une gestion d'erreur améliorée
+        logStripe('INFO', 'Configuration timeout 20s');
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+          logStripe('WARN', 'Timeout atteint, annulation de la requête');
+          controller.abort();
+        }, 20000); // 20 secondes timeout
+        
+        try {
+          logStripe('INFO', 'Envoi de la requête POST');
+          response = await fetch(currentEndpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'Origin': window.location.origin,
+              'Referer': window.location.href,
+            },
+            body: JSON.stringify(currentPayload),
+            signal: controller.signal,
+            mode: 'cors',
+            credentials: 'omit',
+          });
+          
+          clearTimeout(timeoutId);
+          logStripe('INFO', 'Requête terminée, timeout annulé');
+          
+          // Si la requête réussit, sortir de la boucle
+          if (response.ok) {
+            logStripe('INFO', `Tentative ${attemptCount} réussie`);
+            break;
+          } else {
+            logStripe('WARN', `Tentative ${attemptCount} échouée`, {
+              status: response.status,
+              statusText: response.statusText
+            });
+            
+            // Si c'est la dernière tentative ou si ce n'est pas une erreur CORS/404, lancer l'erreur
+            if (attemptCount === maxAttempts || (response.status !== 404 && response.status !== 0)) {
+              break;
+            }
+          }
+        } catch (fetchError) {
+          clearTimeout(timeoutId);
+          logStripe('ERROR', `Erreur tentative ${attemptCount}`, {
+            error: fetchError instanceof Error ? fetchError.message : fetchError,
+            endpoint: currentEndpoint
+          });
+          
+          // Si c'est la dernière tentative, relancer l'erreur
+          if (attemptCount === maxAttempts) {
+            throw fetchError;
+          }
+        }
+      }
 
       logStripe('INFO', 'Réponse reçue', {
         status: response.status,
