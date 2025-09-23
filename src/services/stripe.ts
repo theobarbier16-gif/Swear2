@@ -69,7 +69,7 @@ export class StripeService {
 
       logStripe('INFO', '📡 Appel Firebase Callable createCheckout', payload);
 
-      // Appeler la fonction Firebase
+      // Appeler la fonction Firebase - le SDK gère automatiquement CORS
       const result = await this.createCheckoutFn(payload);
       const data = result.data as any;
 
