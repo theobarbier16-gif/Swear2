@@ -3,7 +3,7 @@ import * as admin from "firebase-admin";
 import Stripe from "stripe";
 import { onRequest, onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
-import * as cors from "cors";
+import cors from "cors";
 
 // Configuration CORS
 const corsHandler = cors({
