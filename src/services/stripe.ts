@@ -1,6 +1,5 @@
-import { loadStripe } from '@stripe/stripe-js';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { auth, app } from '../lib/firebase'; // adapte si ton export diffère
+import { auth, app } from '../lib/firebase';
 
 const logStripe = (level: 'INFO' | 'WARN' | 'ERROR', message: string, data?: any) => {
   const t = new Date().toISOString();
@@ -13,6 +12,7 @@ const logStripe = (level: 'INFO' | 'WARN' | 'ERROR', message: string, data?: any
 export interface CreateCheckoutSessionRequest {
   planType: 'abonnement' | 'starter' | 'pro';
   userEmail: string;
+  userId?: string;
   successUrl?: string;
   cancelUrl?: string;
 }
@@ -23,11 +23,14 @@ export interface CreateCheckoutSessionResponse {
 }
 
 export class StripeService {
-  private stripePromise = loadStripe('pk_test_51S59C86LX1cwJPasiNmP8pMN9vBIyR3J35a7DYKwoFOCi7WhNfYFZISgdSoWTGg4XSBroUfpmndhB77CZVqitFyL0083YVHh9n');
-
-  // IMPORTANT: on cible la même région que tes functions (us-central1)
+  // Configuration Firebase Functions pour us-central1
   private functions = getFunctions(app, 'us-central1');
   private createCheckoutFn = httpsCallable(this.functions, 'createCheckout');
+
+  constructor() {
+    logStripe('INFO', '🚀 VERSION 3.0 - StripeService initialisé avec Firebase Callable');
+    logStripe('INFO', '🎯 Région: us-central1, Fonction: createCheckout');
+  }
 
   private getPriceId(planType: string): string {
     const priceIds = {
@@ -50,36 +53,80 @@ export class StripeService {
   }
 
   async createCheckoutSession(req: CreateCheckoutSessionRequest): Promise<CreateCheckoutSessionResponse> {
-    logStripe('INFO', 'Création de session via callable Firebase', req);
+    logStripe('INFO', '🚀 VERSION 3.0 - Création session via Firebase Callable', req);
 
-    const uid = this.requireUserId();
-    const payload = {
-      priceId: this.getPriceId(req.planType),
-      successUrl: req.successUrl ?? `${window.location.origin}/?success=true&plan=${req.planType}`,
-      cancelUrl:  req.cancelUrl  ?? `${window.location.origin}/?canceled=true`,
-      // pas besoin d’envoyer uid: le backend le lit via request.auth.uid
-    };
+    try {
+      // Vérifier l'authentification
+      const uid = this.requireUserId();
+      logStripe('INFO', '✅ Utilisateur authentifié', { uid });
 
-    const { data }: any = await this.createCheckoutFn(payload);
-    // Notre backend renvoie { url: session.url }
-    if (!data?.url) {
-      logStripe('ERROR', 'Réponse invalide de la callable', data);
-      throw new Error('Réponse invalide du serveur (url manquante).');
+      // Préparer le payload pour la fonction Firebase
+      const payload = {
+        priceId: this.getPriceId(req.planType),
+        successUrl: req.successUrl ?? `${window.location.origin}/?success=true&plan=${req.planType}`,
+        cancelUrl:  req.cancelUrl  ?? `${window.location.origin}/?canceled=true`,
+      };
+
+      logStripe('INFO', '📡 Appel Firebase Callable createCheckout', payload);
+
+      // Appeler la fonction Firebase
+      const result = await this.createCheckoutFn(payload);
+      const data = result.data as any;
+
+      logStripe('INFO', '✅ Réponse Firebase Callable reçue', data);
+
+      if (!data?.url) {
+        logStripe('ERROR', '❌ URL manquante dans la réponse', data);
+        throw new Error('Réponse invalide du serveur (URL manquante).');
+      }
+
+      logStripe('INFO', '🎯 Session Stripe créée avec succès', { url: data.url });
+      return { sessionId: '', url: data.url };
+
+    } catch (error: any) {
+      logStripe('ERROR', '❌ Erreur création session', {
+        message: error.message,
+        code: error.code,
+        stack: error.stack
+      });
+
+      // Messages d'erreur plus explicites
+      if (error.code === 'unauthenticated') {
+        throw new Error('Vous devez être connecté pour effectuer un paiement.');
+      } else if (error.code === 'permission-denied') {
+        throw new Error('Permissions insuffisantes. Reconnectez-vous.');
+      } else if (error.code === 'unavailable') {
+        throw new Error('Service temporairement indisponible. Réessayez dans quelques instants.');
+      } else {
+        throw new Error(`Erreur de paiement: ${error.message}`);
+      }
     }
-
-    logStripe('INFO', '✅ Session créée (URL Stripe Checkout reçue)', { url: data.url });
-    return { sessionId: '', url: data.url };
   }
 
   async redirectToCheckout(req: CreateCheckoutSessionRequest): Promise<void> {
-    const session = await this.createCheckoutSession(req);
-    // Comme on renvoie une URL de Checkout, on redirige le navigateur directement :
-    window.location.assign(session.url!);
+    logStripe('INFO', '🔄 VERSION 3.0 - Redirection vers Stripe Checkout', req);
+    
+    try {
+      const session = await this.createCheckoutSession(req);
+      
+      if (!session.url) {
+        throw new Error('URL de redirection manquante');
+      }
+
+      logStripe('INFO', '🚀 Redirection vers Stripe', { url: session.url });
+      window.location.assign(session.url);
+      
+    } catch (error: any) {
+      logStripe('ERROR', '❌ Erreur redirection paiement', {
+        message: error.message,
+        stack: error.stack
+      });
+      throw error;
+    }
   }
 
   getWebhookUrl(): string {
-    // juste informatif si tu veux l’afficher dans l’UI
-    return 'https://stripewebhook-ewygqh2kbq-uc.a.run.app';
+    return 'https://us-central1-swear-30c84.cloudfunctions.net/stripeWebhook';
   }
 }
 
