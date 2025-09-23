@@ -287,6 +287,13 @@ export class StripeService {
       });
       
       return {
+        sessionId: data.sessionId || data.id,
+        url: data.url
+      };
+    } catch (error) {
+      logStripe('ERROR', 'Erreur création session', error);
+      throw error;
+    }
   }
 
   private getPriceId(planType: string): string {
