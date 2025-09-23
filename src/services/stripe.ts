@@ -1,5 +1,5 @@
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { auth, app } from '../lib/firebase';
+import app, { auth } from '../lib/firebase';
 
 const logStripe = (level: 'INFO' | 'WARN' | 'ERROR', message: string, data?: any) => {
   const t = new Date().toISOString();
