@@ -56,7 +56,7 @@ export class StripeService {
       logStripe('INFO', 'Environnement LOCAL détecté');
     } else {
       // Production - utiliser les fonctions déployées
-      // URLs Cloud Run réelles (Gen2)
+      // URL de base pour les fonctions Cloud Run (Gen2)
       this.functionsUrl = 'https://createcheckout-ewygqh2kbq-uc.a.run.app';
       logStripe('INFO', 'Environnement PRODUCTION détecté');
     }
@@ -85,13 +85,12 @@ export class StripeService {
       
       // Tester les endpoints réels de vos Firebase Functions
       const testEndpoints = [
-        // URLs Cloud Run réelles
+        // URLs Cloud Run réelles - vos fonctions déployées
         'https://createcheckout-ewygqh2kbq-uc.a.run.app',
-        'https://createcheckouthttps-ewygqh2kbq-uc.a.run.app',
+        'https://createcheckouthttp-ewygqh2kbq-uc.a.run.app',
         'https://stripewebhook-ewygqh2kbq-uc.a.run.app',
-        // Fallback vers les URLs Firebase Functions classiques
-        'https://us-central1-swear-30c84.cloudfunctions.net/createCheckout',
-        'https://us-central1-swear-30c84.cloudfunctions.net/createCheckoutHttp'
+        // Fallback vers les URLs Firebase Functions classiques (si elles existent)
+        'https://us-central1-swear-30c84.cloudfunctions.net/createCheckout'
       ];
       
       logStripe('INFO', 'Test des endpoints', { testEndpoints });
@@ -226,7 +225,7 @@ export class StripeService {
         attemptCount++;
         const currentEndpoint = attemptCount === 1 
           ? 'https://createcheckout-ewygqh2kbq-uc.a.run.app'
-          : 'https://createcheckouthttps-ewygqh2kbq-uc.a.run.app';
+          : 'https://createcheckouthttp-ewygqh2kbq-uc.a.run.app';
         const currentPayload = directPayload;
         
         logStripe('INFO', `Tentative ${attemptCount}/${maxAttempts}`, {
