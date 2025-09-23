@@ -126,7 +126,7 @@ export class StripeService {
   }
 
   getWebhookUrl(): string {
-    return 'https://us-central1-swear-30c84.cloudfunctions.net/stripeWebhook';
+    return 'https://stripewebhook-ewygqh2kbq-uc.a.run.app';
   }
 }
 
