@@ -33,7 +33,7 @@ export class StripeService {
   private isLocalEnvironment: boolean;
 
   constructor() {
-    logStripe('INFO', '🚀 NOUVELLE VERSION - Initialisation StripeService avec URLs Cloud Run');
+    logStripe('INFO', '🚀 VERSION 2.0 - Initialisation StripeService avec URLs Cloud Run FIXES');
     logStripe('INFO', 'Variables d\'environnement détectées', {
       hostname: window.location.hostname,
       protocol: window.location.protocol,
@@ -58,10 +58,10 @@ export class StripeService {
     } else {
       // Production - utiliser les URLs Cloud Run directement
       this.functionsUrl = 'https://createcheckout-ewygqh2kbq-uc.a.run.app';
-      logStripe('INFO', '🎯 Environnement PRODUCTION - URLs Cloud Run configurées');
+      logStripe('INFO', '🎯 VERSION 2.0 - Environnement PRODUCTION - URLs Cloud Run configurées');
     }
     
-    logStripe('INFO', '✅ Configuration terminée avec URLs Cloud Run', {
+    logStripe('INFO', '✅ VERSION 2.0 - Configuration terminée avec URLs Cloud Run', {
       functionsUrl: this.functionsUrl,
       hostname: window.location.hostname,
       environment: this.isLocalEnvironment ? 'local' : 'production',
@@ -71,7 +71,7 @@ export class StripeService {
   }
 
   async createCheckoutSession(request: CreateCheckoutSessionRequest): Promise<CreateCheckoutSessionResponse> {
-    logStripe('INFO', '🚀 NOUVELLE VERSION - Début création session Stripe avec Cloud Run', {
+    logStripe('INFO', '🚀 VERSION 2.0 - Début création session Stripe avec Cloud Run', {
       request,
       functionsUrl: this.functionsUrl,
       hostname: window.location.hostname,
@@ -80,9 +80,9 @@ export class StripeService {
       timestamp: new Date().toISOString()
     });
     
-    // Test de connectivité avec les vraies URLs Cloud Run
+    // VERSION 2.0 - Test de connectivité avec les vraies URLs Cloud Run
     try {
-      logStripe('INFO', '🔍 Test de connectivité Cloud Run...');
+      logStripe('INFO', '🔍 VERSION 2.0 - Test de connectivité Cloud Run...');
       
       // Tester les endpoints Cloud Run réels
       const testEndpoints = [
