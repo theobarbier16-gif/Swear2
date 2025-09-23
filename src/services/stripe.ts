@@ -56,8 +56,8 @@ export class StripeService {
       logStripe('INFO', 'Environnement LOCAL détecté');
     } else {
       // Production - utiliser les fonctions déployées
-      // URL de base pour les Firebase Functions Gen2
-      this.functionsUrl = 'https://us-central1-swear-30c84.cloudfunctions.net';
+      // URLs Cloud Run réelles (Gen2)
+      this.functionsUrl = 'https://createcheckout-ewygqh2kbq-uc.a.run.app';
       logStripe('INFO', 'Environnement PRODUCTION détecté');
     }
     
@@ -85,11 +85,13 @@ export class StripeService {
       
       // Tester les endpoints réels de vos Firebase Functions
       const testEndpoints = [
-        `${this.functionsUrl}/createCheckout`,
-        `${this.functionsUrl}/stripeWebhook`,
-        // Essayer aussi les URLs directes au cas où
-        'https://createcheckout-abcdefghij-uc.a.run.app', // Format Gen2 Cloud Run
-        'https://stripewebhook-abcdefghij-uc.a.run.app'   // Format Gen2 Cloud Run
+        // URLs Cloud Run réelles
+        'https://createcheckout-ewygqh2kbq-uc.a.run.app',
+        'https://createcheckouthttps-ewygqh2kbq-uc.a.run.app',
+        'https://stripewebhook-ewygqh2kbq-uc.a.run.app',
+        // Fallback vers les URLs Firebase Functions classiques
+        'https://us-central1-swear-30c84.cloudfunctions.net/createCheckout',
+        'https://us-central1-swear-30c84.cloudfunctions.net/createCheckoutHttp'
       ];
       
       logStripe('INFO', 'Test des endpoints', { testEndpoints });
@@ -200,42 +202,36 @@ export class StripeService {
       // Déterminer l'endpoint et le payload selon le type de fonction
       let finalEndpoint: string;
       let finalPayload: any;
-      let useCallableFunction = true;
+      let useCallableFunction = false; // Cloud Run utilise HTTP direct
       
-      if (this.functionsUrl.includes('.run.app')) {
-        // Cloud Run - requête directe
-        finalEndpoint = this.functionsUrl;
-        finalPayload = directPayload;
-        useCallableFunction = false;
-        logStripe('INFO', 'Mode Cloud Run détecté');
-      } else {
-        // Firebase Functions classique - fonction callable
-        finalEndpoint = `${this.functionsUrl}/createCheckout`;
-        finalPayload = payload;
-        logStripe('INFO', 'Mode Firebase Functions callable détecté');
-      }
+      // Utiliser directement l'URL Cloud Run
+      finalEndpoint = 'https://createcheckout-ewygqh2kbq-uc.a.run.app';
+      finalPayload = directPayload;
+      logStripe('INFO', 'Mode Cloud Run détecté - requête HTTP directe');
       
       logStripe('INFO', 'Payload et endpoint préparés', {
         payload: finalPayload,
         targetUrl: finalEndpoint,
         isLocalEnvironment: this.isLocalEnvironment,
-        isCloudRun: this.functionsUrl.includes('.run.app'),
+        isCloudRun: true,
         useCallableFunction
       });
       
-      // Essayer d'abord la fonction callable, puis fallback sur HTTP
+      // Essayer d'abord createCheckout, puis fallback sur createCheckoutHttp
       let response: Response;
       let attemptCount = 0;
-      const maxAttempts = useCallableFunction ? 2 : 1;
+      const maxAttempts = 2;
       
       while (attemptCount < maxAttempts) {
         attemptCount++;
-        const currentEndpoint = attemptCount === 1 ? finalEndpoint : `${this.functionsUrl}/createCheckoutHttp`;
-        const currentPayload = attemptCount === 1 ? finalPayload : directPayload;
+        const currentEndpoint = attemptCount === 1 
+          ? 'https://createcheckout-ewygqh2kbq-uc.a.run.app'
+          : 'https://createcheckouthttps-ewygqh2kbq-uc.a.run.app';
+        const currentPayload = directPayload;
         
         logStripe('INFO', `Tentative ${attemptCount}/${maxAttempts}`, {
           endpoint: currentEndpoint,
-          payloadType: attemptCount === 1 ? 'callable' : 'http'
+          payloadType: 'http-direct'
         });
         
         // Ajouter un timeout et une gestion d'erreur améliorée
@@ -480,8 +476,8 @@ export class StripeService {
   // Méthode pour obtenir l'URL du webhook
   getWebhookUrl(): string {
     const webhookUrl = this.isLocalEnvironment 
-      ? `${this.functionsUrl}/webhook`
-      : `${this.functionsUrl}/stripeWebhook`;
+      ? 'http://localhost:5001/swear-30c84/us-central1/stripeWebhook'
+      : 'https://stripewebhook-ewygqh2kbq-uc.a.run.app';
     
     logStripe('INFO', 'URL webhook générée', { webhookUrl });
     return webhookUrl;
