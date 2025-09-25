@@ -1,8 +1,8 @@
-// src/lib/stripe.ts — Prod only
+// src/lib/stripe.ts — Frontend (React/TS) avec Firebase Callable
 import { getFunctions, httpsCallable } from "firebase/functions";
 import app, { auth } from "../lib/firebase";
 
-// === Price IDs (prod) ===
+// --- IDs Stripe (mode TEST pour commencer) ---
 const PRICE_IDS = {
   abonnement: "price_1S59Fm6LX1cwJPas3s7oS1pm", // alias starter
   starter:    "price_1S59Fm6LX1cwJPas3s7oS1pm",
@@ -12,14 +12,9 @@ const PRICE_IDS = {
 type PlanFront = keyof typeof PRICE_IDS; // 'abonnement' | 'starter' | 'pro'
 type ServerPlan = "starter" | "pro";
 
-export interface CreateCheckoutSessionRequest {
-  planType: PlanFront;
-  successUrl?: string;
-  cancelUrl?: string;
-}
-
-function selectPayload(planType: PlanFront, successUrl?: string, cancelUrl?: string) {
-  // Si tu préfères piloter par plan côté serveur (recommandé) :
+// Prépare le payload pour l'appel Firebase
+function buildPayload(planType: PlanFront, successUrl?: string, cancelUrl?: string) {
+  // Si c’est starter ou pro → on passe "plan" au backend
   if (planType === "starter" || planType === "pro") {
     return {
       plan: planType as ServerPlan,
@@ -27,7 +22,7 @@ function selectPayload(planType: PlanFront, successUrl?: string, cancelUrl?: str
       cancelUrl:  cancelUrl  ?? `${window.location.origin}/cancel`,
     };
   }
-  // Sinon par priceId (ici 'abonnement' → starter)
+  // Sinon (abonnement) → alias du starter via priceId
   return {
     priceId: PRICE_IDS[planType],
     successUrl: successUrl ?? `${window.location.origin}/success?plan=${planType}`,
@@ -35,16 +30,13 @@ function selectPayload(planType: PlanFront, successUrl?: string, cancelUrl?: str
   };
 }
 
-/**
- * Redirige l'utilisateur vers Stripe Checkout (prod).
- * - Vérifie que l'utilisateur Firebase est connecté
- * - Appelle la callable `createCheckout` (region us-central1)
- * - Redirige sur l'URL renvoyée par ton backend
- */
+// ==========================
+// Redirection Checkout
+// ==========================
 export async function redirectToCheckout(opts: {
-  planType: PlanFront;            // 'abonnement' | 'starter' | 'pro'
-  successUrl?: string;            // optionnel
-  cancelUrl?: string;             // optionnel
+  planType: PlanFront;
+  successUrl?: string;
+  cancelUrl?: string;
 }) {
   const user = auth.currentUser;
   if (!user) throw new Error("Veuillez vous connecter pour payer.");
@@ -52,18 +44,18 @@ export async function redirectToCheckout(opts: {
   const functions = getFunctions(app, "us-central1");
   const createCheckout = httpsCallable(functions, "createCheckout");
 
-  const payload = selectPayload(opts.planType, opts.successUrl, opts.cancelUrl);
+  const payload = buildPayload(opts.planType, opts.successUrl, opts.cancelUrl);
   const { data } = await createCheckout(payload);
 
   const url = (data as any)?.url as string | undefined;
-  if (!url) throw new Error("Réponse serveur invalide : URL manquante.");
+  if (!url) throw new Error("Réponse serveur invalide (URL manquante).");
 
   window.location.assign(url);
 }
 
-/**
- * Option utilitaire si tu veux juste récupérer l'URL sans redirection immédiate.
- */
+// ==========================
+// Récupération URL sans redirect
+// ==========================
 export async function createCheckoutUrl(opts: {
   planType: PlanFront;
   successUrl?: string;
@@ -75,18 +67,10 @@ export async function createCheckoutUrl(opts: {
   const functions = getFunctions(app, "us-central1");
   const createCheckout = httpsCallable(functions, "createCheckout");
 
-  const payload = selectPayload(opts.planType, opts.successUrl, opts.cancelUrl);
+  const payload = buildPayload(opts.planType, opts.successUrl, opts.cancelUrl);
   const { data } = await createCheckout(payload);
 
   const url = (data as any)?.url as string | undefined;
-  if (!url) throw new Error("Réponse serveur invalide : URL manquante.");
+  if (!url) throw new Error("Réponse serveur invalide (URL manquante).");
   return url;
 }
-
-/**
- * Service object that encapsulates Stripe-related functionality
- */
-export const stripeService = {
-  redirectToCheckout,
-  createCheckoutSession: createCheckoutUrl,
-};
