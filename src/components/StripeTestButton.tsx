@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CreditCard, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { CreditCard, Loader as Loader2, CircleAlert as AlertCircle, CircleCheck as CheckCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { stripeService } from '../services/stripe';
 
