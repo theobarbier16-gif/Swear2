@@ -46,7 +46,6 @@ console.log('🔐 Auth current user:', auth.currentUser);
 export const db = getFirestore(app);
 console.log('🗄️ Firestore initialized');
 console.log('🗄️ Firestore app:', db.app.name);
-console.log('🗄️ Firestore settings:', db._delegate._databaseId);
 
 // Initialize Analytics (optional)
 export let analytics: any = null;
