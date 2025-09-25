@@ -22,8 +22,16 @@ export interface CreateCheckoutSessionRequest {
 type PlanFront = keyof typeof PRICE_IDS;
 type ServerPlan = "starter" | "pro";
 
+// Helper pour logger avec timestamp
+function logWithTimestamp(message: string) {
+  const timestamp = new Date().toLocaleTimeString();
+  const logMessage = `[${timestamp}] ${message}`;
+  console.log(logMessage);
+  return logMessage;
+}
+
 function buildPayload(planType: PlanFront, successUrl?: string, cancelUrl?: string) {
-  console.log("🔧 Building payload for plan:", planType);
+  logWithTimestamp(`🔧 Building payload for plan: ${planType}`);
   
   if (planType === "starter" || planType === "pro") {
     const payload = {
@@ -31,7 +39,7 @@ function buildPayload(planType: PlanFront, successUrl?: string, cancelUrl?: stri
       successUrl: successUrl ?? `${window.location.origin}/?success=true&plan=${planType}`,
       cancelUrl:  cancelUrl  ?? `${window.location.origin}/?canceled=true`,
     };
-    console.log("📦 Payload (plan-based):", payload);
+    logWithTimestamp(`📦 Payload (plan-based): ${JSON.stringify(payload)}`);
     return payload;
   }
   
@@ -41,62 +49,65 @@ function buildPayload(planType: PlanFront, successUrl?: string, cancelUrl?: stri
     successUrl: successUrl ?? `${window.location.origin}/?success=true&plan=${planType}`,
     cancelUrl:  cancelUrl  ?? `${window.location.origin}/?canceled=true`,
   };
-  console.log("📦 Payload (priceId-based):", payload);
+  logWithTimestamp(`📦 Payload (priceId-based): ${JSON.stringify(payload)}`);
   return payload;
 }
 
 async function redirectToCheckout(request: CreateCheckoutSessionRequest) {
-  console.log("🚀 STRIPE SERVICE: redirectToCheckout called with:", request);
-  console.log("🔥 IMPORTANT: UTILISATION EXCLUSIVE DE httpsCallable - AUCUN FETCH");
+  logWithTimestamp("🚀 STRIPE SERVICE: redirectToCheckout called");
+  logWithTimestamp("🔥 IMPORTANT: UTILISATION EXCLUSIVE DE httpsCallable - AUCUN FETCH");
   
   if (!auth.currentUser) {
-    console.error("❌ No authenticated user");
+    logWithTimestamp("❌ No authenticated user");
     throw new Error("Veuillez vous connecter.");
   }
 
-  console.log("✅ User authenticated:", auth.currentUser.uid);
+  logWithTimestamp(`✅ User authenticated: ${auth.currentUser.uid}`);
 
   try {
     // FORCER L'USAGE DE httpsCallable UNIQUEMENT
-    console.log("🔧 Initializing Firebase Functions avec httpsCallable...");
+    logWithTimestamp("🔧 Initializing Firebase Functions avec httpsCallable...");
     const functions = getFunctions(app, "us-central1");
     const createCheckout = httpsCallable(functions, "createCheckout");
     
-    console.log("✅ Firebase Functions initialized avec httpsCallable");
-    console.log("🎯 Function region: us-central1");
-    console.log("🎯 Function name: createCheckout");
-    console.log("🔥 METHODE: httpsCallable (PAS DE FETCH)");
+    logWithTimestamp("✅ Firebase Functions initialized avec httpsCallable");
+    logWithTimestamp("🎯 Function region: us-central1");
+    logWithTimestamp("🎯 Function name: createCheckout");
+    logWithTimestamp("🔥 METHODE: httpsCallable (PAS DE FETCH)");
 
     // Construire le payload
     const payload = buildPayload(request.planType, request.successUrl, request.cancelUrl);
     
-    console.log("📡 CALLING httpsCallable(createCheckout) - NO HTTP FETCH");
-    console.log("📡 Payload:", payload);
+    logWithTimestamp("📡 CALLING httpsCallable(createCheckout) - NO HTTP FETCH");
+    logWithTimestamp(`📡 Payload: ${JSON.stringify(payload)}`);
 
     // APPEL EXCLUSIF VIA httpsCallable
+    logWithTimestamp("⏳ Appel en cours...");
     const result = await createCheckout(payload);
-    console.log("✅ httpsCallable response:", result);
+    logWithTimestamp(`✅ httpsCallable response: ${JSON.stringify(result)}`);
 
     const data = result.data as any;
     const url = data?.url;
     
     if (!url) {
-      console.error("❌ No URL in response:", data);
+      logWithTimestamp(`❌ No URL in response: ${JSON.stringify(data)}`);
       throw new Error("Réponse serveur invalide - pas d'URL de redirection");
     }
 
-    console.log("🔗 Redirecting to Stripe URL:", url);
-    console.log("✅ SUCCESS: Aucun appel HTTP direct - uniquement httpsCallable");
+    logWithTimestamp(`🔗 Redirecting to Stripe URL: ${url}`);
+    logWithTimestamp("✅ SUCCESS: Aucun appel HTTP direct - uniquement httpsCallable");
     
     // Redirection vers Stripe
     window.location.assign(url);
     
   } catch (error) {
-    console.error("❌ Error in redirectToCheckout:", error);
+    logWithTimestamp(`❌ Error in redirectToCheckout: ${error}`);
     
     if (error instanceof Error) {
-      console.error("❌ Error message:", error.message);
-      console.error("❌ Error stack:", error.stack);
+      logWithTimestamp(`❌ Error message: ${error.message}`);
+      if (error.stack) {
+        logWithTimestamp(`❌ Error stack: ${error.stack}`);
+      }
     }
     
     throw error;
@@ -104,44 +115,45 @@ async function redirectToCheckout(request: CreateCheckoutSessionRequest) {
 }
 
 async function createCheckoutSession(request: CreateCheckoutSessionRequest) {
-  console.log("🚀 STRIPE SERVICE: createCheckoutSession called with:", request);
-  console.log("🔥 IMPORTANT: UTILISATION EXCLUSIVE DE httpsCallable - AUCUN FETCH");
+  logWithTimestamp("🚀 STRIPE SERVICE: createCheckoutSession called");
+  logWithTimestamp("🔥 IMPORTANT: UTILISATION EXCLUSIVE DE httpsCallable - AUCUN FETCH");
   
   if (!auth.currentUser) {
-    console.error("❌ No authenticated user");
+    logWithTimestamp("❌ No authenticated user");
     throw new Error("Veuillez vous connecter.");
   }
 
-  console.log("✅ User authenticated:", auth.currentUser.uid);
+  logWithTimestamp(`✅ User authenticated: ${auth.currentUser.uid}`);
 
   try {
     // FORCER L'USAGE DE httpsCallable UNIQUEMENT
-    console.log("🔧 Initializing Firebase Functions avec httpsCallable...");
+    logWithTimestamp("🔧 Initializing Firebase Functions avec httpsCallable...");
     const functions = getFunctions(app, "us-central1");
     const createCheckout = httpsCallable(functions, "createCheckout");
     
-    console.log("✅ Firebase Functions initialized avec httpsCallable");
-    console.log("🔥 METHODE: httpsCallable (PAS DE FETCH)");
+    logWithTimestamp("✅ Firebase Functions initialized avec httpsCallable");
+    logWithTimestamp("🔥 METHODE: httpsCallable (PAS DE FETCH)");
 
     // Construire le payload
     const payload = buildPayload(request.planType, request.successUrl, request.cancelUrl);
     
-    console.log("📡 CALLING httpsCallable(createCheckout) - NO HTTP FETCH");
+    logWithTimestamp("📡 CALLING httpsCallable(createCheckout) - NO HTTP FETCH");
 
     // APPEL EXCLUSIF VIA httpsCallable
+    logWithTimestamp("⏳ Appel en cours...");
     const result = await createCheckout(payload);
-    console.log("✅ httpsCallable response:", result);
+    logWithTimestamp(`✅ httpsCallable response: ${JSON.stringify(result)}`);
 
     const data = result.data as any;
     const url = data?.url;
     const sessionId = data?.sessionId;
     
     if (!url) {
-      console.error("❌ No URL in response:", data);
+      logWithTimestamp(`❌ No URL in response: ${JSON.stringify(data)}`);
       throw new Error("Réponse serveur invalide - pas d'URL de redirection");
     }
 
-    console.log("✅ SUCCESS: Aucun appel HTTP direct - uniquement httpsCallable");
+    logWithTimestamp("✅ SUCCESS: Aucun appel HTTP direct - uniquement httpsCallable");
 
     return {
       url,
@@ -149,7 +161,15 @@ async function createCheckoutSession(request: CreateCheckoutSessionRequest) {
     };
     
   } catch (error) {
-    console.error("❌ Error in createCheckoutSession:", error);
+    logWithTimestamp(`❌ Error in createCheckoutSession: ${error}`);
+    
+    if (error instanceof Error) {
+      logWithTimestamp(`❌ Error message: ${error.message}`);
+      if (error.stack) {
+        logWithTimestamp(`❌ Error stack: ${error.stack}`);
+      }
+    }
+    
     throw error;
   }
 }
@@ -160,4 +180,4 @@ export const stripeService = {
   createCheckoutSession
 };
 
-console.log("✅ STRIPE SERVICE: Service exported avec httpsCallable UNIQUEMENT - AUCUN FETCH");
+logWithTimestamp("✅ STRIPE SERVICE: Service exported avec httpsCallable UNIQUEMENT - AUCUN FETCH");

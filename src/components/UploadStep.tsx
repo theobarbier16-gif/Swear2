@@ -3,6 +3,7 @@ import { Upload, ImageIcon, Sparkles, AlertCircle, User, Ruler } from 'lucide-re
 import { ClothingOptions } from '../App';
 import { useAuth } from '../contexts/AuthContext';
 import { stripeService } from '../services/stripe';
+import StripeTestButton from './StripeTestButton';
 
 interface UploadStepProps {
   onImageUpload: (imageUrl: string, fileName: string, file: File, options: ClothingOptions) => void;
@@ -194,6 +195,13 @@ const UploadStep: React.FC<UploadStepProps> = ({ onImageUpload, isProcessing, pr
           S'abonner
         </button>
       </div>
+
+      {/* Stripe Test Button (Development only) */}
+      {import.meta.env.DEV && (
+        <div className="max-w-2xl mx-auto mb-8">
+          <StripeTestButton />
+        </div>
+      )}
 
       {/* Error Message */}
       {processingError && (
