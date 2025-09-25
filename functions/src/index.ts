@@ -1,25 +1,9 @@
-// functions/src/index.ts — Firebase Functions (Gen2) + Stripe
-// Prérequis : Node 20, secrets STRIPE_SECRET_KEY & STRIPE_WEBHOOK_SECRET configurés
-// Webhook URL (Test) à mettre dans Stripe :
-// https://us-central1-swear-30c84.cloudfunctions.net/stripeWebhook
+// functions/src/index.ts — Firebase Functions (Gen2) + Stripe (callable only)
 
 import * as admin from "firebase-admin";
 import Stripe from "stripe";
 import { onRequest, onCall } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
-import cors from "cors";
-
-// ---------- Stripe helper ----------
-// NOTE: pas d'apiVersion ici pour éviter les erreurs de typings ("2025-08-27.basil" etc.)
-const stripeFrom = (key: string) => new Stripe(key as any);
-
-// ---------- CORS (utile pour onRequest) ----------
-const corsHandler = cors({
-  origin: true,
-  methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "Accept", "Origin", "Stripe-Signature"],
-  credentials: false,
-});
 
 // ---------- Firebase Admin ----------
 if (!admin.apps.length) admin.initializeApp();
@@ -43,6 +27,9 @@ const PLAN_CREDITS: Record<Plan, number> = {
   pro: 150,
 };
 
+// ---------- Stripe helper ----------
+const stripeFrom = (key: string) => new Stripe(key as any);
+
 // ==============================
 // 1) Callable: createCheckout
 // ==============================
@@ -51,7 +38,6 @@ export const createCheckout = onCall(
     region: "us-central1",
     secrets: [STRIPE_SECRET_KEY],
     timeoutSeconds: 30,
-    cors: true, // CORS auto pour callable
   },
   async (request) => {
     const secret = STRIPE_SECRET_KEY.value();
@@ -135,222 +121,179 @@ export const stripeWebhook = onRequest(
     secrets: [STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET],
     timeoutSeconds: 30,
     maxInstances: 1,
-    cors: true,
   },
   async (req, res) => {
-    return corsHandler(req, res, async () => {
-      const secret = STRIPE_SECRET_KEY.value();
-      const whsec = STRIPE_WEBHOOK_SECRET.value();
+    const secret = STRIPE_SECRET_KEY.value();
+    const whsec = STRIPE_WEBHOOK_SECRET.value();
+    const stripe = stripeFrom(secret);
 
-      console.log("🔴 stripeWebhook called", {
-        method: req.method,
-        hasRawBody: !!(req as any).rawBody,
-        headers: {
-          "stripe-signature": req.headers["stripe-signature"],
-          "content-type": req.headers["content-type"],
-        },
-      });
+    console.log("🔴 stripeWebhook called");
 
-      if (req.method === "OPTIONS") {
-        res.status(204).send("");
-        return;
-      }
+    if (req.method !== "POST") {
+      res.set("Allow", "POST");
+      res.status(405).send("Method Not Allowed");
+      return;
+    }
 
-      if (req.method !== "POST") {
-        res.set("Allow", "POST");
-        res.status(405).send("Method Not Allowed");
-        return;
-      }
+    const signature = req.headers["stripe-signature"] as string;
 
-      const stripe = stripeFrom(secret);
-      const signature = req.headers["stripe-signature"] as string;
+    let event: any;
+    try {
+      event = (stripe.webhooks.constructEvent as any)(
+        (req as any).rawBody,
+        signature,
+        whsec
+      );
+      console.log("🔴 Event received:", event.type);
+    } catch (err: any) {
+      console.error("❌ Invalid signature:", err.message);
+      res.status(400).send(`Webhook Error: ${err.message}`);
+      return;
+    }
 
-      let event: any;
-      try {
-        // ⚠️ IMPORTANT: utiliser le rawBody pour vérifier la signature
-        event = (stripe.webhooks.constructEvent as any)(
-          (req as any).rawBody,
-          signature,
-          whsec
-        );
-        console.log("🔴 Event received:", event.type);
-      } catch (err: any) {
-        console.error("❌ Invalid signature:", err.message);
-        res.status(400).send(`Webhook Error: ${err.message}`);
-        return;
-      }
+    try {
+      switch (event.type) {
+        case "checkout.session.completed": {
+          const s = event.data.object as any;
 
-      try {
-        switch (event.type) {
-          // 2.1) Checkout terminé → créer/mettre à jour l'abonnement utilisateur
-          case "checkout.session.completed": {
-            const s = event.data.object as any;
+          const full = await (stripe.checkout.sessions.retrieve as any)(s.id, {
+            expand: ["line_items.data.price", "subscription"],
+          });
 
-            // Refetch pour obtenir line_items + subscription complets
-            const full = await (stripe.checkout.sessions.retrieve as any)(s.id, {
-              expand: ["line_items.data.price", "subscription"],
-            });
+          const uid = full.metadata?.uid || full.client_reference_id || null;
+          const customerId = (full.customer as string) || null;
+          const subscription = (full.subscription as any) || null;
+          const price = (full.line_items?.data?.[0]?.price ?? null) as any;
 
-            const uid = full.metadata?.uid || full.client_reference_id || null;
-            const customerId = (full.customer as string) || null;
-            const subscription = (full.subscription as any) || null;
+          let plan: Plan = "free";
+          if (price?.id === PRICE_IDS.starter) plan = "starter";
+          if (price?.id === PRICE_IDS.pro) plan = "pro";
 
-            const price = (full.line_items?.data?.[0]?.price ?? null) as any;
+          const subscriptionId = subscription?.id || null;
+          const status = subscription?.status || "active";
+          const periodEndUnix = subscription?.current_period_end ?? null;
 
-            // Détermination du plan via price.id (basé sur PRICE_IDS)
-            let plan: Plan = "free";
-            if (price?.id === PRICE_IDS.starter) plan = "starter";
-            if (price?.id === PRICE_IDS.pro) plan = "pro";
-
-            const subscriptionId = subscription?.id || null;
-            const status = subscription?.status || "active";
-            const periodEndUnix = subscription?.current_period_end ?? null;
-
-            if (!uid || !customerId) {
-              console.warn("⚠️ Missing uid or customerId; skipping.");
-              break;
-            }
-
-            await db
-              .collection("users")
-              .doc(uid)
-              .set(
-                {
-                  stripeCustomerId: customerId,
-                  hasPaid: plan !== "free",
-                  subscription: {
-                    plan,
-                    subscriptionId,
-                    status,
-                    creditsRemaining: PLAN_CREDITS[plan],
-                    maxCredits: PLAN_CREDITS[plan],
-                    renewalDate: periodEndUnix
-                      ? admin.firestore.Timestamp.fromMillis(periodEndUnix * 1000)
-                      : admin.firestore.FieldValue.serverTimestamp(),
-                    lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-                  },
-                },
-                { merge: true }
-              );
-
-            console.log("✅ checkout.session.completed handled", {
-              uid,
-              plan,
-              subscriptionId,
-              status,
-            });
+          if (!uid || !customerId) {
+            console.warn("⚠️ Missing uid or customerId; skipping.");
             break;
           }
 
-          // 2.2) MàJ abonnement (changement d’offre, pause, reprise, etc.)
-          case "customer.subscription.updated": {
-            const sub = event.data.object as any;
-            const customerId = sub.customer as string;
-            const price = (sub.items?.data?.[0]?.price as any) || undefined;
-
-            let plan: Plan = "free";
-            if (price?.id === PRICE_IDS.starter) plan = "starter";
-            if (price?.id === PRICE_IDS.pro) plan = "pro";
-
-            const q = await db
-              .collection("users")
-              .where("stripeCustomerId", "==", customerId)
-              .limit(1)
-              .get();
-
-            if (q.empty) {
-              console.warn(
-                "⚠️ No user found for customerId on subscription.updated",
-                customerId
-              );
-              break;
-            }
-
-            const periodEndUnix = sub?.current_period_end ?? null;
-
-            await q.docs[0].ref.set(
-              {
-                hasPaid: plan !== "free",
-                subscription: {
-                  plan,
-                  subscriptionId: sub.id,
-                  status: sub.status,
-                  creditsRemaining: PLAN_CREDITS[plan],
-                  maxCredits: PLAN_CREDITS[plan],
-                  renewalDate: periodEndUnix
-                    ? admin.firestore.Timestamp.fromMillis(periodEndUnix * 1000)
-                    : admin.firestore.FieldValue.serverTimestamp(),
-                  lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-                },
+          await db.collection("users").doc(uid).set(
+            {
+              stripeCustomerId: customerId,
+              hasPaid: plan !== "free",
+              subscription: {
+                plan,
+                subscriptionId,
+                status,
+                creditsRemaining: PLAN_CREDITS[plan],
+                maxCredits: PLAN_CREDITS[plan],
+                renewalDate: periodEndUnix
+                  ? admin.firestore.Timestamp.fromMillis(periodEndUnix * 1000)
+                  : admin.firestore.FieldValue.serverTimestamp(),
+                lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
               },
-              { merge: true }
-            );
+            },
+            { merge: true }
+          );
 
-            console.log("✅ customer.subscription.updated handled", {
-              customerId,
-              plan,
-              status: sub.status,
-            });
-            break;
-          }
-
-          // 2.3) Abonnement annulé
-          case "customer.subscription.deleted": {
-            const sub = event.data.object as any;
-            const customerId = sub.customer as string;
-
-            const q = await db
-              .collection("users")
-              .where("stripeCustomerId", "==", customerId)
-              .limit(1)
-              .get();
-
-            if (q.empty) break;
-
-            await q.docs[0].ref.set(
-              {
-                hasPaid: false,
-                subscription: {
-                  plan: "free" as Plan,
-                  subscriptionId: sub.id,
-                  status: sub.status,
-                  creditsRemaining: PLAN_CREDITS.free,
-                  maxCredits: PLAN_CREDITS.free,
-                  renewalDate: admin.firestore.FieldValue.serverTimestamp(),
-                  lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-                  downgradedAt: admin.firestore.FieldValue.serverTimestamp(),
-                },
-              },
-              { merge: true }
-            );
-
-            console.log("✅ customer.subscription.deleted handled", {
-              customerId,
-            });
-            break;
-          }
-
-          // 2.4) Paiement d'invoice échoué (optionnel)
-          case "invoice.payment_failed": {
-            const invoice = event.data.object as any;
-            console.log("ℹ️ invoice.payment_failed", {
-              customer: invoice.customer,
-              subscription: invoice.subscription,
-            });
-            break;
-          }
-
-          default:
-            console.log("ℹ️ Unhandled event:", event.type);
+          console.log("✅ checkout.session.completed handled", {
+            uid,
+            plan,
+            subscriptionId,
+            status,
+          });
+          break;
         }
 
-        res.json({ received: true });
-        return;
-      } catch (e) {
-        console.error("🔥 Webhook handler error", e);
-        res.status(500).send("Internal Error");
-        return;
+        case "customer.subscription.updated": {
+          const sub = event.data.object as any;
+          const customerId = sub.customer as string;
+          const price = (sub.items?.data?.[0]?.price as any) || undefined;
+
+          let plan: Plan = "free";
+          if (price?.id === PRICE_IDS.starter) plan = "starter";
+          if (price?.id === PRICE_IDS.pro) plan = "pro";
+
+          const q = await db
+            .collection("users")
+            .where("stripeCustomerId", "==", customerId)
+            .limit(1)
+            .get();
+
+          if (q.empty) break;
+
+          const periodEndUnix = sub?.current_period_end ?? null;
+
+          await q.docs[0].ref.set(
+            {
+              hasPaid: plan !== "free",
+              subscription: {
+                plan,
+                subscriptionId: sub.id,
+                status: sub.status,
+                creditsRemaining: PLAN_CREDITS[plan],
+                maxCredits: PLAN_CREDITS[plan],
+                renewalDate: periodEndUnix
+                  ? admin.firestore.Timestamp.fromMillis(periodEndUnix * 1000)
+                  : admin.firestore.FieldValue.serverTimestamp(),
+                lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+              },
+            },
+            { merge: true }
+          );
+
+          console.log("✅ customer.subscription.updated handled", {
+            customerId,
+            plan,
+            status: sub.status,
+          });
+          break;
+        }
+
+        case "customer.subscription.deleted": {
+          const sub = event.data.object as any;
+          const customerId = sub.customer as string;
+
+          const q = await db
+            .collection("users")
+            .where("stripeCustomerId", "==", customerId)
+            .limit(1)
+            .get();
+
+          if (q.empty) break;
+
+          await q.docs[0].ref.set(
+            {
+              hasPaid: false,
+              subscription: {
+                plan: "free" as Plan,
+                subscriptionId: sub.id,
+                status: sub.status,
+                creditsRemaining: PLAN_CREDITS.free,
+                maxCredits: PLAN_CREDITS.free,
+                renewalDate: admin.firestore.FieldValue.serverTimestamp(),
+                lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+                downgradedAt: admin.firestore.FieldValue.serverTimestamp(),
+              },
+            },
+            { merge: true }
+          );
+
+          console.log("✅ customer.subscription.deleted handled", {
+            customerId,
+          });
+          break;
+        }
+
+        default:
+          console.log("ℹ️ Unhandled event:", event.type);
       }
-    });
+
+      res.json({ received: true });
+    } catch (e) {
+      console.error("🔥 Webhook handler error", e);
+      res.status(500).send("Internal Error");
+    }
   }
 );
