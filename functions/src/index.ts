@@ -39,6 +39,7 @@ export const createCheckout = onCall(
     secrets: [STRIPE_SECRET_KEY],
     timeoutSeconds: 30,
     cors: true,
+    cors: true,
   },
   async (request) => {
     const secret = STRIPE_SECRET_KEY.value();
