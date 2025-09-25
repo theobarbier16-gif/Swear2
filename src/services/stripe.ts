@@ -12,6 +12,12 @@ const PRICE_IDS = {
 type PlanFront = keyof typeof PRICE_IDS; // 'abonnement' | 'starter' | 'pro'
 type ServerPlan = "starter" | "pro";
 
+export interface CreateCheckoutSessionRequest {
+  planType: PlanFront;
+  successUrl?: string;
+  cancelUrl?: string;
+}
+
 function selectPayload(planType: PlanFront, successUrl?: string, cancelUrl?: string) {
   // Si tu préfères piloter par plan côté serveur (recommandé) :
   if (planType === "starter" || planType === "pro") {
@@ -76,3 +82,11 @@ export async function createCheckoutUrl(opts: {
   if (!url) throw new Error("Réponse serveur invalide : URL manquante.");
   return url;
 }
+
+/**
+ * Service object that encapsulates Stripe-related functionality
+ */
+export const stripeService = {
+  redirectToCheckout,
+  createCheckoutSession: createCheckoutUrl,
+};
