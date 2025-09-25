@@ -65,7 +65,16 @@ async function redirectToCheckout(request: CreateCheckoutSessionRequest) {
   }
 
   logWithTimestamp(`✅ User authenticated: ${auth.currentUser.uid}`);
-  logWithTimestamp(`🔑 User token exists: ${!!await auth.currentUser.getIdToken()}`);
+  
+  // Test du token d'authentification
+  let userToken;
+  try {
+    userToken = await auth.currentUser.getIdToken();
+    logWithTimestamp(`🔑 User token obtained successfully: ${userToken.substring(0, 20)}...`);
+  } catch (tokenError) {
+    logWithTimestamp(`❌ Failed to get user token: ${tokenError}`);
+    throw new Error("Impossible d'obtenir le token d'authentification");
+  }
 
   try {
     // FORCER L'USAGE DE httpsCallable UNIQUEMENT
@@ -73,11 +82,27 @@ async function redirectToCheckout(request: CreateCheckoutSessionRequest) {
     logWithTimestamp(`🏗️ Firebase app name: ${app.name}`);
     logWithTimestamp(`🏗️ Firebase app options: ${JSON.stringify(app.options)}`);
     
-    const functions = getFunctions(app, "us-central1");
+    let functions;
+    try {
+      functions = getFunctions(app, "us-central1");
+      logWithTimestamp(`🔧 Functions instance created successfully`);
+    } catch (functionsError) {
+      logWithTimestamp(`❌ Failed to create Functions instance: ${functionsError}`);
+      throw functionsError;
+    }
+    
     logWithTimestamp(`🔧 Functions instance created: ${!!functions}`);
     logWithTimestamp(`🌍 Functions region: us-central1`);
     
-    const createCheckout = httpsCallable(functions, "createCheckout");
+    let createCheckout;
+    try {
+      createCheckout = httpsCallable(functions, "createCheckout");
+      logWithTimestamp(`🎯 httpsCallable function created successfully`);
+    } catch (callableError) {
+      logWithTimestamp(`❌ Failed to create httpsCallable: ${callableError}`);
+      throw callableError;
+    }
+    
     logWithTimestamp(`🎯 httpsCallable created: ${!!createCheckout}`);
     
     logWithTimestamp("✅ Firebase Functions initialized avec httpsCallable");
@@ -96,14 +121,28 @@ async function redirectToCheckout(request: CreateCheckoutSessionRequest) {
     
     let result;
     try {
+      logWithTimestamp("🚀 About to call httpsCallable function...");
+      logWithTimestamp(`🔑 Using auth token: ${userToken ? 'YES' : 'NO'}`);
+      logWithTimestamp(`📍 Function URL should be: https://us-central1-swear-30c84.cloudfunctions.net/createCheckout`);
+      
       result = await createCheckout(payload);
       logWithTimestamp(`✅ Raw httpsCallable response: ${JSON.stringify(result)}`);
     } catch (callError) {
       logWithTimestamp(`❌ httpsCallable call failed: ${callError}`);
       logWithTimestamp(`❌ Error type: ${callError.constructor.name}`);
-      logWithTimestamp(`❌ Error code: ${callError.code}`);
-      logWithTimestamp(`❌ Error message: ${callError.message}`);
-      logWithTimestamp(`❌ Error details: ${JSON.stringify(callError.details || {})}`);
+      logWithTimestamp(`❌ Error code: ${(callError as any).code || 'NO_CODE'}`);
+      logWithTimestamp(`❌ Error message: ${callError.message || 'NO_MESSAGE'}`);
+      logWithTimestamp(`❌ Error details: ${JSON.stringify((callError as any).details || {})}`);
+      
+      // Logs spéciaux pour diagnostiquer l'erreur "internal"
+      if ((callError as any).code === 'internal') {
+        logWithTimestamp(`🔍 INTERNAL ERROR ANALYSIS:`);
+        logWithTimestamp(`🔍 - This usually means the Firebase Function doesn't exist or failed to execute`);
+        logWithTimestamp(`🔍 - Check if the function 'createCheckout' is deployed in region 'us-central1'`);
+        logWithTimestamp(`🔍 - Project ID: swear-30c84`);
+        logWithTimestamp(`🔍 - Expected function URL: https://us-central1-swear-30c84.cloudfunctions.net/createCheckout`);
+      }
+      
       throw callError;
     }
     
@@ -156,9 +195,11 @@ async function createCheckoutSession(request: CreateCheckoutSessionRequest) {
 
   logWithTimestamp(`✅ User authenticated: ${auth.currentUser.uid}`);
   
+  // Test du token d'authentification
+  let userToken;
   try {
-    const token = await auth.currentUser.getIdToken();
-    logWithTimestamp(`🔑 User token obtained: ${token.substring(0, 20)}...`);
+    userToken = await auth.currentUser.getIdToken();
+    logWithTimestamp(`🔑 User token obtained: ${userToken.substring(0, 20)}...`);
   } catch (tokenError) {
     logWithTimestamp(`❌ Failed to get user token: ${tokenError}`);
     throw new Error("Impossible d'obtenir le token d'authentification");
@@ -169,10 +210,26 @@ async function createCheckoutSession(request: CreateCheckoutSessionRequest) {
     logWithTimestamp("🔧 Initializing Firebase Functions avec httpsCallable...");
     logWithTimestamp(`🏗️ Firebase app name: ${app.name}`);
     
-    const functions = getFunctions(app, "us-central1");
+    let functions;
+    try {
+      functions = getFunctions(app, "us-central1");
+      logWithTimestamp(`🔧 Functions instance created successfully`);
+    } catch (functionsError) {
+      logWithTimestamp(`❌ Failed to create Functions instance: ${functionsError}`);
+      throw functionsError;
+    }
+    
     logWithTimestamp(`🔧 Functions instance: ${!!functions}`);
     
-    const createCheckout = httpsCallable(functions, "createCheckout");
+    let createCheckout;
+    try {
+      createCheckout = httpsCallable(functions, "createCheckout");
+      logWithTimestamp(`🎯 httpsCallable function created successfully`);
+    } catch (callableError) {
+      logWithTimestamp(`❌ Failed to create httpsCallable: ${callableError}`);
+      throw callableError;
+    }
+    
     logWithTimestamp(`🎯 httpsCallable function: ${!!createCheckout}`);
     
     logWithTimestamp("✅ Firebase Functions initialized avec httpsCallable");
@@ -190,20 +247,38 @@ async function createCheckoutSession(request: CreateCheckoutSessionRequest) {
     let result;
     try {
       logWithTimestamp("🚀 Executing httpsCallable...");
+      logWithTimestamp(`🔑 Using auth token: ${userToken ? 'YES' : 'NO'}`);
+      logWithTimestamp(`📍 Function URL should be: https://us-central1-swear-30c84.cloudfunctions.net/createCheckout`);
+      logWithTimestamp(`🏗️ Project ID: swear-30c84`);
+      
       result = await createCheckout(payload);
       logWithTimestamp(`✅ httpsCallable executed successfully`);
     } catch (callError) {
       logWithTimestamp(`❌ httpsCallable execution failed: ${callError}`);
       logWithTimestamp(`❌ Error type: ${callError.constructor.name}`);
       
-      if (callError.code) {
-        logWithTimestamp(`❌ Firebase Error Code: ${callError.code}`);
+      if ((callError as any).code) {
+        logWithTimestamp(`❌ Firebase Error Code: ${(callError as any).code}`);
       }
       if (callError.message) {
         logWithTimestamp(`❌ Firebase Error Message: ${callError.message}`);
       }
-      if (callError.details) {
-        logWithTimestamp(`❌ Firebase Error Details: ${JSON.stringify(callError.details)}`);
+      if ((callError as any).details) {
+        logWithTimestamp(`❌ Firebase Error Details: ${JSON.stringify((callError as any).details)}`);
+      }
+      
+      // Diagnostic spécial pour l'erreur "internal"
+      if ((callError as any).code === 'internal') {
+        logWithTimestamp(`🔍 INTERNAL ERROR DIAGNOSTIC:`);
+        logWithTimestamp(`🔍 - Function name: createCheckout`);
+        logWithTimestamp(`🔍 - Region: us-central1`);
+        logWithTimestamp(`🔍 - Project: swear-30c84`);
+        logWithTimestamp(`🔍 - This error usually means:`);
+        logWithTimestamp(`🔍   1. Function is not deployed`);
+        logWithTimestamp(`🔍   2. Function crashed during execution`);
+        logWithTimestamp(`🔍   3. Wrong region or function name`);
+        logWithTimestamp(`🔍   4. Permissions issue`);
+        logWithTimestamp(`🔍 - Check Firebase Console: https://console.firebase.google.com/project/swear-30c84/functions`);
       }
       
       throw callError;
