@@ -68,6 +68,8 @@ exports.createCheckout = (0, https_1.onCall)({
     region: "us-central1",
     secrets: [STRIPE_SECRET_KEY],
     timeoutSeconds: 30,
+    cors: true,
+    cors: true,
 }, async (request) => {
     const secret = STRIPE_SECRET_KEY.value();
     console.log("🔵 createCheckout called", {
