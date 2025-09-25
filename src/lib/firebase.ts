@@ -45,7 +45,6 @@ console.log('🔐 Auth current user:', auth.currentUser);
 // Initialize Cloud Firestore and get a reference to the service
 export const db = getFirestore(app);
 console.log('🗄️ Firestore initialized');
-console.log('🗄️ Firestore app:', db.app.name);
 
 // Initialize Analytics (optional)
 export let analytics: any = null;
