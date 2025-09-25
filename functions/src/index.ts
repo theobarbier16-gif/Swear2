@@ -10,8 +10,8 @@ import { defineSecret } from "firebase-functions/params";
 import cors from "cors";
 
 // ---------- Stripe helper ----------
-const stripeFrom = (key: string) =>
-  new Stripe(key, { apiVersion: "2024-06-20" });
+// NOTE: pas d'apiVersion ici pour éviter les erreurs de typings ("2025-08-27.basil" etc.)
+const stripeFrom = (key: string) => new Stripe(key as any);
 
 // ---------- CORS (utile pour onRequest) ----------
 const corsHandler = cors({
@@ -75,7 +75,7 @@ export const createCheckout = onCall(
       successUrl: string;
       cancelUrl: string;
       plan?: Exclude<Plan, "free">; // "starter" | "pro"
-    } = request.data || {};
+    } = (request.data || {}) as any;
 
     if (!successUrl || !cancelUrl) {
       throw new Error("Missing successUrl/cancelUrl");
@@ -95,11 +95,11 @@ export const createCheckout = onCall(
     const userRef = db.collection("users").doc(uid);
     const snap = await userRef.get();
 
-    let customerId = snap.data()?.stripeCustomerId as string | undefined;
+    let customerId = (snap.data()?.stripeCustomerId as string | undefined) || undefined;
     if (!customerId) {
       console.log("🔵 Creating Stripe customer for uid:", uid);
       const userRecord = await admin.auth().getUser(uid);
-      const customer = await stripe.customers.create({
+      const customer = await (stripe.customers.create as any)({
         email: userRecord.email || undefined,
         metadata: { uid },
       });
@@ -110,7 +110,7 @@ export const createCheckout = onCall(
 
     // Créer la session Checkout
     console.log("🔵 Creating checkout session...");
-    const session = await stripe.checkout.sessions.create({
+    const session = await (stripe.checkout.sessions.create as any)({
       mode: "subscription",
       customer: customerId,
       line_items: [{ price: resolvedPriceId, quantity: 1 }],
@@ -165,10 +165,10 @@ export const stripeWebhook = onRequest(
       const stripe = stripeFrom(secret);
       const signature = req.headers["stripe-signature"] as string;
 
-      let event: Stripe.Event;
+      let event: any;
       try {
         // ⚠️ IMPORTANT: utiliser le rawBody pour vérifier la signature
-        event = stripe.webhooks.constructEvent(
+        event = (stripe.webhooks.constructEvent as any)(
           (req as any).rawBody,
           signature,
           whsec
@@ -184,21 +184,18 @@ export const stripeWebhook = onRequest(
         switch (event.type) {
           // 2.1) Checkout terminé → créer/mettre à jour l'abonnement utilisateur
           case "checkout.session.completed": {
-            const s = event.data.object as Stripe.Checkout.Session;
+            const s = event.data.object as any;
 
             // Refetch pour obtenir line_items + subscription complets
-            const full = await stripe.checkout.sessions.retrieve(s.id, {
+            const full = await (stripe.checkout.sessions.retrieve as any)(s.id, {
               expand: ["line_items.data.price", "subscription"],
             });
 
-            const uid =
-              full.metadata?.uid || full.client_reference_id || null;
+            const uid = full.metadata?.uid || full.client_reference_id || null;
             const customerId = (full.customer as string) || null;
-            const subscription =
-              (full.subscription as Stripe.Subscription | null) || null;
+            const subscription = (full.subscription as any) || null;
 
-            const price = (full.line_items?.data?.[0]?.price ??
-              null) as Stripe.Price | null;
+            const price = (full.line_items?.data?.[0]?.price ?? null) as any;
 
             // Détermination du plan via price.id (basé sur PRICE_IDS)
             let plan: Plan = "free";
@@ -207,7 +204,7 @@ export const stripeWebhook = onRequest(
 
             const subscriptionId = subscription?.id || null;
             const status = subscription?.status || "active";
-            const periodEndUnix = subscription?.current_period_end || null;
+            const periodEndUnix = subscription?.current_period_end ?? null;
 
             if (!uid || !customerId) {
               console.warn("⚠️ Missing uid or customerId; skipping.");
@@ -228,12 +225,9 @@ export const stripeWebhook = onRequest(
                     creditsRemaining: PLAN_CREDITS[plan],
                     maxCredits: PLAN_CREDITS[plan],
                     renewalDate: periodEndUnix
-                      ? admin.firestore.Timestamp.fromMillis(
-                          periodEndUnix * 1000
-                        )
+                      ? admin.firestore.Timestamp.fromMillis(periodEndUnix * 1000)
                       : admin.firestore.FieldValue.serverTimestamp(),
-                    lastUpdated:
-                      admin.firestore.FieldValue.serverTimestamp(),
+                    lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
                   },
                 },
                 { merge: true }
@@ -250,9 +244,9 @@ export const stripeWebhook = onRequest(
 
           // 2.2) MàJ abonnement (changement d’offre, pause, reprise, etc.)
           case "customer.subscription.updated": {
-            const sub = event.data.object as Stripe.Subscription;
+            const sub = event.data.object as any;
             const customerId = sub.customer as string;
-            const price = sub.items.data[0]?.price as Stripe.Price | undefined;
+            const price = (sub.items?.data?.[0]?.price as any) || undefined;
 
             let plan: Plan = "free";
             if (price?.id === PRICE_IDS.starter) plan = "starter";
@@ -272,6 +266,8 @@ export const stripeWebhook = onRequest(
               break;
             }
 
+            const periodEndUnix = sub?.current_period_end ?? null;
+
             await q.docs[0].ref.set(
               {
                 hasPaid: plan !== "free",
@@ -281,13 +277,10 @@ export const stripeWebhook = onRequest(
                   status: sub.status,
                   creditsRemaining: PLAN_CREDITS[plan],
                   maxCredits: PLAN_CREDITS[plan],
-                  renewalDate: sub.current_period_end
-                    ? admin.firestore.Timestamp.fromMillis(
-                        sub.current_period_end * 1000
-                      )
+                  renewalDate: periodEndUnix
+                    ? admin.firestore.Timestamp.fromMillis(periodEndUnix * 1000)
                     : admin.firestore.FieldValue.serverTimestamp(),
-                  lastUpdated:
-                    admin.firestore.FieldValue.serverTimestamp(),
+                  lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
                 },
               },
               { merge: true }
@@ -303,7 +296,7 @@ export const stripeWebhook = onRequest(
 
           // 2.3) Abonnement annulé
           case "customer.subscription.deleted": {
-            const sub = event.data.object as Stripe.Subscription;
+            const sub = event.data.object as any;
             const customerId = sub.customer as string;
 
             const q = await db
@@ -323,12 +316,9 @@ export const stripeWebhook = onRequest(
                   status: sub.status,
                   creditsRemaining: PLAN_CREDITS.free,
                   maxCredits: PLAN_CREDITS.free,
-                  renewalDate:
-                    admin.firestore.FieldValue.serverTimestamp(),
-                  lastUpdated:
-                    admin.firestore.FieldValue.serverTimestamp(),
-                  downgradedAt:
-                    admin.firestore.FieldValue.serverTimestamp(),
+                  renewalDate: admin.firestore.FieldValue.serverTimestamp(),
+                  lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+                  downgradedAt: admin.firestore.FieldValue.serverTimestamp(),
                 },
               },
               { merge: true }
@@ -342,7 +332,7 @@ export const stripeWebhook = onRequest(
 
           // 2.4) Paiement d'invoice échoué (optionnel)
           case "invoice.payment_failed": {
-            const invoice = event.data.object as Stripe.Invoice;
+            const invoice = event.data.object as any;
             console.log("ℹ️ invoice.payment_failed", {
               customer: invoice.customer,
               subscription: invoice.subscription,
